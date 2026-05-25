@@ -13,6 +13,6 @@ class Config:
 def load_config() -> Config:
     return Config(
         wt_dir_name=os.environ.get("WT_DIR_NAME", "wt"),
-        projects_dir=Path(os.environ.get("WT_PROJECTS_DIR", str(Path.home() / "Development"))),
+        projects_dir=Path(os.environ.get("WT_PROJECTS_DIR", str(Path.home() / "Development"))).expanduser(),
         agent_cmd=os.environ.get("WT_AGENT_CMD", "claude"),
     )

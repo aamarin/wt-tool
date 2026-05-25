@@ -1,6 +1,5 @@
 import time
 from dataclasses import dataclass
-from pathlib import Path
 
 from rich.console import Console
 from rich.table import Table
@@ -84,7 +83,7 @@ def print_status_table(rows: list[StatusRow]) -> None:
         else:
             sync = "[dim]-[/dim]"
 
-        age_secs = now - row.last_commit_ts if row.last_commit_ts else 0
+        age_secs = max(0, now - row.last_commit_ts) if row.last_commit_ts else 0
         if age_secs > stale_threshold:
             age_str = f"[yellow]{_human_age(age_secs)}[/yellow]"
         else:

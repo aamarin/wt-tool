@@ -1,5 +1,4 @@
-import subprocess
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 from pathlib import Path
 
 from wt.tmux import has_session, make_session_name, ensure_session
@@ -38,9 +37,13 @@ class TestMakeSessionName:
         assert make_session_name("main") == "main"
 
     def test_no_colons(self):
-        # colons break tmux target parsing
         name = make_session_name("my-branch")
         assert ":" not in name
+
+    def test_sanitizes_colons(self):
+        # tmux interprets colons as session:window:pane separator
+        assert make_session_name("feat:my-feature") == "feat-my-feature"
+        assert make_session_name("a:b:c") == "a-b-c"
 
 
 class TestEnsureSession:

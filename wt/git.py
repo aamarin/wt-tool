@@ -1,6 +1,6 @@
 import re
 import subprocess
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
@@ -90,6 +90,20 @@ def list_worktrees(root: Path) -> list[WorktreeInfo]:
     return parse_worktrees(out + "\n")
 
 
+def list_worktrees_silent(root: Path) -> list[WorktreeInfo]:
+    """Returns empty list without printing errors if root is not a git repo."""
+    try:
+        result = subprocess.run(
+            ["git", "worktree", "list", "--porcelain"],
+            cwd=root, capture_output=True, text=True,
+        )
+        if result.returncode != 0:
+            return []
+        return parse_worktrees(result.stdout + "\n")
+    except Exception:
+        return []
+
+
 def get_repo_name(root: Path) -> str:
     return root.name
 
@@ -103,6 +117,8 @@ def list_branches(root: Path) -> list[str]:
     branches: list[str] = []
     for b in out.splitlines():
         short = b.removeprefix("origin/")
+        if short == "HEAD" or short.endswith("/HEAD"):
+            continue
         if short not in seen:
             seen.add(short)
             branches.append(short)

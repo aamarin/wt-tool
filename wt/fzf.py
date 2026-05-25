@@ -35,4 +35,7 @@ def run_fzf(
     if result.returncode in (1, 130):
         raise FzfAborted()
 
+    if result.returncode != 0:
+        raise RuntimeError(f"fzf exited with code {result.returncode}")
+
     return result.stdout.strip()

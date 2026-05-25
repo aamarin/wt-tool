@@ -55,6 +55,13 @@ class TestRunFzf:
             assert "--preview" in args
             assert "echo {}" in args
 
+    def test_raises_on_unexpected_error_code(self):
+        mock_result = MagicMock()
+        mock_result.returncode = 2  # fzf: invalid options / runtime error
+        with patch("subprocess.run", return_value=mock_result):
+            with pytest.raises(RuntimeError, match="fzf exited with code 2"):
+                run_fzf(["main"])
+
     def test_delimiter_and_with_nth(self):
         mock_result = MagicMock()
         mock_result.returncode = 0

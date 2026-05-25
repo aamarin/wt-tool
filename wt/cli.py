@@ -1,5 +1,4 @@
 import os
-import time
 from pathlib import Path
 from typing import Annotated, Optional
 
@@ -17,13 +16,13 @@ app = typer.Typer(
 )
 
 _OPEN_PREVIEW = (
-    'echo "== PATH =="; echo {2}; echo; '
-    'echo "== STATUS =="; git -C {2} status -sb; echo; '
-    'st=$(git -C {2} status --porcelain); '
+    'echo "== PATH =="; echo "{2}"; echo; '
+    'echo "== STATUS =="; git -C "{2}" status -sb; echo; '
+    'st=$(git -C "{2}" status --porcelain); '
     'if [ -n "$st" ]; then '
-    '  echo "== DIFF =="; git -C {2} diff --color | head -200; '
+    '  echo "== DIFF =="; git -C "{2}" diff --color | head -200; '
     'else '
-    '  echo "== LAST COMMITS =="; git -C {2} log --oneline -5; '
+    '  echo "== LAST COMMITS =="; git -C "{2}" log --oneline -5; '
     'fi'
 )
 
@@ -122,20 +121,21 @@ def open_cmd(
 
     if branch is None:
         choices = [
-            f"{wt.branch}|{wt.path}" for wt in managed
+            f"{wt.branch}\t{wt.path}" for wt in managed
         ]
         try:
             selected = fzf.run_fzf(
                 choices,
                 prompt="open > ",
                 preview_cmd=_OPEN_PREVIEW,
-                delimiter="|",
+                delimiter="\t",
                 with_nth="1",
             )
         except fzf.FzfAborted:
             raise typer.Exit(0)
-        branch = selected.split("|")[0]
-        wt_path = Path(selected.split("|")[1])
+        parts = selected.split("\t", maxsplit=1)
+        branch = parts[0]
+        wt_path = Path(parts[1])
     else:
         match = next((wt for wt in managed if wt.branch == branch), None)
         if not match:
@@ -217,7 +217,7 @@ def rm(
 
 @app.command(name="global")
 def global_cmd(
-    target: Annotated[Optional[str], typer.Argument(help="repo:branch to open directly")] = None,
+    target: Annotated[Optional[str], typer.Argument(help="repo/branch to open directly")] = None,
 ) -> None:
     """Select a worktree across all repos under WT_PROJECTS_DIR."""
     cfg = load_config()
@@ -235,21 +235,17 @@ def global_cmd(
     for wt_dir in sorted(wt_dirs):
         repo_root = wt_dir.parent
         repo_name = git.get_repo_name(repo_root)
-        try:
-            worktrees = git.list_worktrees(repo_root)
-        except SystemExit:
-            continue
-        for wt in worktrees:
+        for wt in git.list_worktrees_silent(repo_root):
             if cfg.wt_dir_name not in wt.path.parts or not wt.branch:
                 continue
-            choices.append(f"{repo_name}/{wt.branch}|{wt.path}|{repo_root}")
+            choices.append(f"{repo_name}/{wt.branch}\t{wt.path}\t{repo_name}")
 
     if not choices:
         display.print_error("No managed worktrees found across projects")
         raise typer.Exit(1)
 
     if target is not None:
-        match = next((c for c in choices if c.split("|")[0] == target), None)
+        match = next((c for c in choices if c.split("\t", maxsplit=1)[0] == target), None)
         if not match:
             display.print_error(f"No worktree found for '{target}'")
             raise typer.Exit(1)
@@ -260,17 +256,19 @@ def global_cmd(
                 choices,
                 prompt="global > ",
                 preview_cmd=_OPEN_PREVIEW,
-                delimiter="|",
+                delimiter="\t",
                 with_nth="1",
             )
         except fzf.FzfAborted:
             raise typer.Exit(0)
 
-    parts = selected.split("|")
+    parts = selected.split("\t", maxsplit=2)
     wt_path = Path(parts[1])
+    repo_name = parts[2]
     label = parts[0]
     branch = label.split("/", 1)[1] if "/" in label else label
 
-    session = tmux.make_session_name(branch)
+    # include repo name to avoid session collision across repos with same branch name
+    session = tmux.make_session_name(f"{repo_name}__{branch}")
     tmux.ensure_session(session, wt_path, cfg.agent_cmd)
     tmux.attach(session)

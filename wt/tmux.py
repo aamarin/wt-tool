@@ -4,8 +4,8 @@ from pathlib import Path
 
 
 def make_session_name(branch: str) -> str:
-    # tmux parses colons as session:window:pane — use branch only for now
-    return branch
+    # tmux parses colons as session:window:pane — replace with dash
+    return branch.replace(":", "-")
 
 
 def has_session(session: str) -> bool:
@@ -23,13 +23,14 @@ def create_session(session: str, path: Path, agent_cmd: str) -> None:
         check=True, capture_output=True,
     )
     subprocess.run(
-        ["tmux", "new-window", "-t", session, "-n", "deploy", "-c", str(path)],
+        ["tmux", "new-window", "-t", f"={session}", "-n", "deploy", "-c", str(path)],
         check=True, capture_output=True,
     )
     subprocess.run(
-        ["tmux", "new-window", "-t", session, "-n", "agent", "-c", str(path)],
+        ["tmux", "new-window", "-t", f"={session}", "-n", "agent", "-c", str(path)],
         check=True, capture_output=True,
     )
+    # session:window target is intentional here — not a session name lookup
     subprocess.run(
         ["tmux", "send-keys", "-t", f"{session}:agent", agent_cmd, "Enter"],
         check=True, capture_output=True,
@@ -38,7 +39,7 @@ def create_session(session: str, path: Path, agent_cmd: str) -> None:
 
 def kill_session(session: str) -> None:
     subprocess.run(
-        ["tmux", "kill-session", "-t", session],
+        ["tmux", "kill-session", "-t", f"={session}"],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
@@ -51,6 +52,6 @@ def ensure_session(session: str, path: Path, agent_cmd: str) -> None:
 
 def attach(session: str) -> None:
     if os.environ.get("TMUX"):
-        os.execvp("tmux", ["tmux", "switch-client", "-t", session])
+        os.execvp("tmux", ["tmux", "switch-client", "-t", f"={session}"])
     else:
-        os.execvp("tmux", ["tmux", "attach", "-t", session])
+        os.execvp("tmux", ["tmux", "attach", "-t", f"={session}"])
