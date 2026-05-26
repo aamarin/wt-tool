@@ -1,0 +1,25 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "wt-tool"
+version = "0.1.0"
+description = "git worktree + tmux workflow tool"
+requires-python = ">=3.11"
+dependencies = [
+    "typer>=0.9.0",
+    "rich>=13.0.0",
+]
+
+[project.scripts]
+wt = "wt_tool.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["wt_tool"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-mock>=3.0",
+]
