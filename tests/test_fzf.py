@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from wt.fzf import run_fzf, FzfAborted
+from wt_tool.fzf import run_fzf, FzfAborted
 
 
 class TestRunFzf:

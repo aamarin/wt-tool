@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
-from wt.config import load_config
+from wt_tool.config import load_config
 
 
 class TestLoadConfig:

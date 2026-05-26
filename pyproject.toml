@@ -13,10 +13,10 @@ dependencies = [
 ]
 
 [project.scripts]
-wt = "wt.cli:app"
+wt = "wt_tool.cli:app"
 
 [tool.hatch.build.targets.wheel]
-packages = ["wt"]
+packages = ["wt_tool"]
 
 [dependency-groups]
 dev = [

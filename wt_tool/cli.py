@@ -1,12 +1,18 @@
+import importlib.resources
 import os
+import shutil
 from pathlib import Path
 from typing import Annotated, Optional
 
 import typer
 
-from wt import git, tmux, fzf, display
-from wt.config import load_config
-from wt.display import StatusRow
+from wt_tool import git, tmux, fzf, display
+from wt_tool.config import (
+    load_config,
+    resolve_projects_dir, save_projects_dir,
+    resolve_agent_skills_dir, save_agent_skills_dir,
+)
+from wt_tool.display import StatusRow
 
 app = typer.Typer(
     name="wt",
@@ -222,13 +228,24 @@ def global_cmd(
     """Select a worktree across all repos under WT_PROJECTS_DIR."""
     cfg = load_config()
 
+    projects_dir = resolve_projects_dir()
+    if projects_dir is None:
+        display.print_info("WT_PROJECTS_DIR is not configured.")
+        raw = typer.prompt(
+            "Where are your projects?",
+            default=str(Path.home() / "Development"),
+        )
+        projects_dir = Path(raw).expanduser().resolve()
+        save_projects_dir(projects_dir)
+        display.print_success(f"Saved projects dir: {projects_dir}")
+
     wt_dirs = [
-        p for p in cfg.projects_dir.glob(f"*/{cfg.wt_dir_name}")
+        p for p in projects_dir.glob(f"*/{cfg.wt_dir_name}")
         if p.is_dir()
     ]
 
     if not wt_dirs:
-        display.print_error(f"No worktree dirs found under {cfg.projects_dir}")
+        display.print_error(f"No worktree dirs found under {projects_dir}")
         raise typer.Exit(1)
 
     choices: list[str] = []
@@ -272,3 +289,38 @@ def global_cmd(
     session = tmux.make_session_name(f"{repo_name}__{branch}")
     tmux.ensure_session(session, wt_path, cfg.agent_cmd)
     tmux.attach(session)
+
+
+install_app = typer.Typer(name="install", help="Install wt integrations.", no_args_is_help=True)
+app.add_typer(install_app)
+
+
+@install_app.command(name="agent-skill")
+def install_agent_skill(
+    path: Annotated[Optional[str], typer.Option("--path", "-p", help="Target skills directory")] = None,
+) -> None:
+    """Install the using-wt agent skill to your skills directory."""
+    _DEFAULT_SKILLS_DIR = Path.home() / ".agents" / "skills"
+
+    if path is not None:
+        skills_dir = Path(path).expanduser().resolve()
+        save_agent_skills_dir(skills_dir)
+    else:
+        skills_dir = resolve_agent_skills_dir()
+        if skills_dir is None:
+            raw = typer.prompt(
+                "Where are your agent skills?",
+                default=str(_DEFAULT_SKILLS_DIR),
+            )
+            skills_dir = Path(raw).expanduser().resolve()
+            save_agent_skills_dir(skills_dir)
+
+    dest = skills_dir / "using-wt"
+
+    skill_src = importlib.resources.files("wt_tool") / "skills" / "using-wt"
+    with importlib.resources.as_file(skill_src) as src:
+        if dest.exists():
+            shutil.rmtree(dest)
+        shutil.copytree(src, dest)
+
+    display.print_success(f"Installed using-wt skill → {dest}")

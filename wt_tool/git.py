@@ -21,7 +21,7 @@ def _run(cmd: list[str], cwd: Optional[Path] = None) -> str:
             cmd, cwd=cwd, check=True, capture_output=True, text=True
         ).stdout.strip()
     except subprocess.CalledProcessError as e:
-        from wt.display import print_error
+        from wt_tool.display import print_error
         print_error(e.stderr.strip() or " ".join(cmd))
         raise typer.Exit(1)
 
@@ -73,13 +73,13 @@ def get_main_worktree_root() -> Path:
             check=True, capture_output=True, text=True,
         ).stdout
     except subprocess.CalledProcessError:
-        from wt.display import print_error
+        from wt_tool.display import print_error
         print_error("Not inside a git repository")
         raise typer.Exit(1)
 
     worktrees = parse_worktrees(out)
     if not worktrees:
-        from wt.display import print_error
+        from wt_tool.display import print_error
         print_error("No worktrees found")
         raise typer.Exit(1)
     return worktrees[0].path
@@ -141,7 +141,7 @@ def delete_branch(root: Path, branch: str) -> None:
             cwd=root, check=True, capture_output=True, text=True,
         )
     except subprocess.CalledProcessError as e:
-        from wt.display import print_error
+        from wt_tool.display import print_error
         print_error(f"Branch delete warning: {e.stderr.strip()}")
 
 

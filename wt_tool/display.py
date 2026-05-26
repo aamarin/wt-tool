@@ -5,7 +5,7 @@ from rich.console import Console
 from rich.table import Table
 from rich.text import Text
 
-from wt.git import WorktreeInfo
+from wt_tool.git import WorktreeInfo
 
 console = Console()
 

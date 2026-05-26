@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from wt.git import parse_worktrees, parse_ahead_behind
+from wt_tool.git import parse_worktrees, parse_ahead_behind
 
 PORCELAIN_NORMAL = """\
 worktree /Users/andremarin/Development/pfms

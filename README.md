@@ -68,6 +68,25 @@ uv tool uninstall wt-tool
 
 ---
 
+## Agent skill
+
+Install the `using-wt` skill so your AI agent knows how to use the tool:
+
+```bash
+wt install agent-skill
+```
+
+Defaults to `~/.agents/skills/`. Override once with `--path`:
+
+```bash
+wt install agent-skill --path ~/.claude/skills/
+```
+
+The chosen path is saved to `~/.config/wt/config.json` — subsequent installs
+(e.g. after upgrading) reuse it without prompting.
+
+---
+
 ## Development install
 
 ```bash
@@ -255,7 +274,7 @@ wo 264-auth-flow    # cd into that worktree, creating it if needed
 ## Architecture
 
 ```
-wt/
+wt_tool/
 ├── cli.py       # typer app — thin command handlers
 ├── config.py    # env var resolution
 ├── git.py       # porcelain parser + subprocess wrappers

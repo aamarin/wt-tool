@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock, patch
 from pathlib import Path
 
-from wt.tmux import has_session, make_session_name, ensure_session
+from wt_tool.tmux import has_session, make_session_name, ensure_session
 
 
 class TestHasSession:
@@ -48,13 +48,13 @@ class TestMakeSessionName:
 
 class TestEnsureSession:
     def test_creates_when_missing(self):
-        with patch("wt.tmux.has_session", return_value=False) as mock_has, \
-             patch("wt.tmux.create_session") as mock_create:
+        with patch("wt_tool.tmux.has_session", return_value=False) as mock_has, \
+             patch("wt_tool.tmux.create_session") as mock_create:
             ensure_session("my-branch", Path("/tmp/path"), "claude")
             mock_create.assert_called_once_with("my-branch", Path("/tmp/path"), "claude")
 
     def test_skips_when_already_exists(self):
-        with patch("wt.tmux.has_session", return_value=True), \
-             patch("wt.tmux.create_session") as mock_create:
+        with patch("wt_tool.tmux.has_session", return_value=True), \
+             patch("wt_tool.tmux.create_session") as mock_create:
             ensure_session("my-branch", Path("/tmp/path"), "claude")
             mock_create.assert_not_called()
