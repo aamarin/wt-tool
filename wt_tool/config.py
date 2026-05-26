@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -18,7 +19,7 @@ def _read_config_file() -> dict:
         try:
             return json.loads(CONFIG_FILE.read_text())
         except json.JSONDecodeError:
-            pass
+            print(f"wt: warning: {CONFIG_FILE} contains invalid JSON, ignoring", file=sys.stderr)
     return {}
 
 
@@ -57,9 +58,26 @@ def save_agent_skills_dir(path: Path) -> None:
     _write_config_file(data)
 
 
+def resolve_agent_cmd() -> str | None:
+    """Returns the configured agent command, or None if never explicitly set."""
+    if "WT_AGENT_CMD" in os.environ:
+        return os.environ["WT_AGENT_CMD"]
+    data = _read_config_file()
+    if "agent_cmd" in data:
+        return data["agent_cmd"]
+    return None
+
+
+def save_agent_cmd(cmd: str) -> None:
+    data = _read_config_file()
+    data["agent_cmd"] = cmd
+    _write_config_file(data)
+
+
 def load_config() -> Config:
+    data = _read_config_file()
     return Config(
         wt_dir_name=os.environ.get("WT_DIR_NAME", "wt"),
-        projects_dir=Path(os.environ.get("WT_PROJECTS_DIR", str(Path.home() / "Development"))).expanduser(),
-        agent_cmd=os.environ.get("WT_AGENT_CMD", "claude"),
+        projects_dir=Path(os.environ.get("WT_PROJECTS_DIR", data.get("projects_dir", str(Path.home() / "Development")))).expanduser(),
+        agent_cmd=os.environ.get("WT_AGENT_CMD", data.get("agent_cmd", "claude")),
     )

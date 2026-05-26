@@ -87,6 +87,16 @@ wt rm <branch>               # requires y/N confirm
 - `WT_PROJECTS_DIR` — root scanned by `wt global` (default: `~/Development`); prompted on first run if unset
 - `WT_AGENT_CMD` — command launched in `agent` window on new session creation (default: `claude`)
 
+Both can be persisted to `~/.config/wt/config.json` via `wt config set`:
+
+```bash
+wt config set agent-cmd "claude --model claude-opus-4-7"
+wt config set projects-dir ~/Work
+wt config show   # inspect current values (file + env)
+```
+
+Env vars still take precedence over saved config.
+
 ## Workflows
 
 ### Start new work

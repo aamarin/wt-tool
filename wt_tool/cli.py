@@ -7,10 +7,12 @@ from typing import Annotated, Optional
 import typer
 
 from wt_tool import git, tmux, fzf, display
+from wt_tool.git import WorktreeInfo
 from wt_tool.config import (
     load_config,
     resolve_projects_dir, save_projects_dir,
     resolve_agent_skills_dir, save_agent_skills_dir,
+    resolve_agent_cmd, save_agent_cmd,
 )
 from wt_tool.display import StatusRow
 
@@ -92,7 +94,7 @@ def open_cmd(
     branch: Annotated[Optional[str], typer.Argument(help="Branch to open")] = None,
     non_interactive: Annotated[bool, typer.Option("--non-interactive", help="Print path and ensure session; no tmux attach")] = False,
 ) -> None:
-    """Open a worktree session, using fzf selector if branch omitted."""
+    """Open a worktree session, using an interactive table if branch omitted."""
     cfg = load_config()
     root = git.get_main_worktree_root()
     worktrees = git.list_worktrees(root)
@@ -110,20 +112,27 @@ def open_cmd(
         if non_interactive:
             display.print_error("--non-interactive requires a branch argument")
             raise typer.Exit(1)
-        choices = [f"{wt.branch}\t{wt.path}" for wt in managed]
-        try:
-            selected = fzf.run_fzf(
-                choices,
-                prompt="open > ",
-                preview_cmd=_OPEN_PREVIEW,
-                delimiter="\t",
-                with_nth="1",
-            )
-        except fzf.FzfAborted:
-            raise typer.Exit(0)
-        parts = selected.split("\t", maxsplit=1)
-        branch = parts[0]
-        wt_path = Path(parts[1])
+        display.print_open_table(managed)
+        selected: WorktreeInfo | None = None
+        while selected is None:
+            try:
+                raw = typer.prompt("\nOpen [branch name or #]").strip()
+            except (KeyboardInterrupt, typer.Abort):
+                raise typer.Exit(0)
+            if raw.isdigit():
+                idx = int(raw)
+                if 1 <= idx <= len(managed):
+                    selected = managed[idx - 1]
+                else:
+                    display.print_error(f"Enter a number between 1 and {len(managed)}")
+            else:
+                match = next((wt for wt in managed if wt.branch == raw), None)
+                if match:
+                    selected = match
+                else:
+                    display.print_error(f"Unknown branch '{raw}'")
+        branch = selected.branch
+        wt_path = selected.path
     else:
         match = next((wt for wt in managed if wt.branch == branch), None)
         if not match:
@@ -177,11 +186,18 @@ def new(
         display.print_error(f"Worktree already exists: {wt_path}")
         raise typer.Exit(1)
 
+    agent_cmd = cfg.agent_cmd
+    if not non_interactive and resolve_agent_cmd() is None:
+        display.print_info("No agent command configured.")
+        raw = typer.prompt("Agent command (launched in agent window, leave blank to skip)", default="claude")
+        agent_cmd = raw.strip()
+        save_agent_cmd(agent_cmd)
+
     display.print_info(f"Creating worktree '{branch}' from '{base}'...")
     git.add_worktree(root, branch, wt_path, base)
 
     session = tmux.make_session_name(branch)
-    tmux.ensure_session(session, wt_path, cfg.agent_cmd)
+    tmux.ensure_session(session, wt_path, agent_cmd)
     display.print_success(f"Created: {wt_path}")
 
     if not non_interactive:
@@ -297,6 +313,38 @@ def global_cmd(
         print(str(wt_path))
     else:
         tmux.attach(session)
+
+
+config_app = typer.Typer(name="config", help="Get and set wt configuration.", no_args_is_help=True)
+app.add_typer(config_app)
+
+_VALID_KEYS = ("agent-cmd", "projects-dir")
+
+
+@config_app.command(name="set")
+def config_set(
+    key: Annotated[str, typer.Argument(help=f"Config key: {', '.join(_VALID_KEYS)}")],
+    value: Annotated[str, typer.Argument(help="Value to set")],
+) -> None:
+    """Set a configuration value."""
+    if key == "agent-cmd":
+        save_agent_cmd(value)
+        display.print_success(f"agent-cmd = {value}")
+    elif key == "projects-dir":
+        save_projects_dir(Path(value).expanduser().resolve())
+        display.print_success(f"projects-dir = {value}")
+    else:
+        display.print_error(f"Unknown key '{key}'. Valid keys: {', '.join(_VALID_KEYS)}")
+        raise typer.Exit(1)
+
+
+@config_app.command(name="show")
+def config_show() -> None:
+    """Show current configuration (file + env)."""
+    cfg = load_config()
+    typer.echo(f"agent-cmd    = {cfg.agent_cmd}")
+    typer.echo(f"projects-dir = {cfg.projects_dir}")
+    typer.echo(f"wt-dir-name  = {cfg.wt_dir_name}")
 
 
 install_app = typer.Typer(name="install", help="Install wt integrations.", no_args_is_help=True)

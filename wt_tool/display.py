@@ -34,6 +34,23 @@ def print_info(msg: str) -> None:
     console.print(f"[cyan]→[/cyan] {msg}")
 
 
+def print_open_table(worktrees: list[WorktreeInfo]) -> list[str]:
+    """Print numbered worktree table for interactive selection. Returns branches in display order."""
+    table = Table(show_header=True, header_style="bold")
+    table.add_column("#", style="dim", justify="right")
+    table.add_column("Branch")
+    table.add_column("Path", style="dim")
+
+    branches = []
+    for i, wt in enumerate(worktrees, 1):
+        branch = wt.branch or "detached"
+        branches.append(branch)
+        table.add_row(str(i), branch, str(wt.path))
+
+    console.print(table)
+    return branches
+
+
 def print_worktree_table(worktrees: list[WorktreeInfo], wt_dir_name: str = "wt") -> None:
     table = Table(show_header=True, header_style="bold")
     table.add_column("Branch")
