@@ -122,11 +122,18 @@ Agents then work in `wt/debug/api/` and `wt/debug/ui/` independently. Use `wt st
 
 ### Clean up a finished environment
 
+After a branch is merged — regardless of how (PR, local merge, any tool) — clean up
+the worktree and tmux session:
+
 ```bash
-path=$(wt open <next-branch> --non-interactive)   # ensure next environment is ready
-cd "$path"                                         # move into it
-wt rm <old-branch> --non-interactive               # now safe — no longer inside it
+path=$(wt open <next-branch> --non-interactive)   # move to next environment first
+cd "$path"
+wt rm <merged-branch> --non-interactive            # removes worktree + branch + tmux session
 ```
+
+`wt rm` handles all three: filesystem worktree, git branch reference, and tmux session.
+Tools that use raw `git worktree remove` + `git branch -d` miss the tmux cleanup —
+always use `wt rm` instead.
 
 `wt rm` blocks with an error if `$PWD` is inside the target worktree.
 
