@@ -52,18 +52,21 @@ Two layers: agent control plane and human UI. Never mix them.
 
 ### Agent control plane (no tmux side effects, safe to script)
 
+All commands accept `--non-interactive` to suppress prompts, fzf, and tmux attach.
+
 ```bash
-wt ls                        # list all worktrees: branch name + path
-wt status                    # health: dirty, sync, stale, tmux active
-wt prune                     # cleanup stale worktree refs
-wt new <branch> <base>       # create worktree + session, no fzf
-wt ensure <branch>           # ensure worktree + session exist, print path, no attach
-wt rm <branch> --yes         # remove worktree + branch + session, no confirm
+wt ls                                      # list all worktrees: branch name + path
+wt status                                  # health: dirty, sync, stale, tmux active
+wt prune                                   # cleanup stale worktree refs
+wt new <branch> <base> --non-interactive   # create worktree + session, print path
+wt open <branch> --non-interactive         # ensure session exists, print path
+wt rm <branch> --non-interactive           # remove worktree + branch + session, no confirm
+wt global <repo>/<branch> --non-interactive  # ensure session exists, print path
 ```
 
-`wt ensure` is the primary agent entry point:
+`wt open <branch> --non-interactive` is the primary agent entry point for existing worktrees:
 ```bash
-path=$(wt ensure feature/api)   # prints path to stdout, errors to stderr
+path=$(wt open feature/api --non-interactive)   # prints path to stdout, errors to stderr
 cd "$path"
 ```
 
@@ -77,7 +80,7 @@ wt open <branch>             # direct switch to branch, attaches tmux session
 wt global                    # fzf across all repos under WT_PROJECTS_DIR
 wt global <repo>/<branch>    # direct cross-repo switch
 wt new [branch]              # omitting base opens fzf
-wt rm <branch>               # without --yes, requires y/N confirm
+wt rm <branch>               # requires y/N confirm
 ```
 
 **Config:**
@@ -91,8 +94,8 @@ wt rm <branch>               # without --yes, requires y/N confirm
 If you know the base branch, create and enter directly:
 
 ```bash
-wt new <branch> <base>        # e.g. wt new feature/search dev
-path=$(wt ensure <branch>)    # get path, confirm session ready
+wt new <branch> <base> --non-interactive   # e.g. wt new feature/search dev --non-interactive
+path=$(wt open <branch> --non-interactive) # get path, confirm session ready
 cd "$path"
 ```
 
@@ -102,11 +105,9 @@ If you don't know the right base, tell the user:
 ### Resume existing work
 
 ```bash
-path=$(wt ensure <branch>)   # creates worktree + session if missing, returns path
+path=$(wt open <branch> --non-interactive)   # errors if worktree doesn't exist
 cd "$path"
 ```
-
-`wt ensure` is idempotent — safe to call whether or not the worktree already exists.
 
 ### Parallel workstreams
 
@@ -122,9 +123,9 @@ Agents then work in `wt/debug/api/` and `wt/debug/ui/` independently. Use `wt st
 ### Clean up a finished environment
 
 ```bash
-path=$(wt ensure <next-branch>)   # ensure next environment is ready
-cd "$path"                         # move into it
-wt rm <old-branch> --yes           # now safe — no longer inside it
+path=$(wt open <next-branch> --non-interactive)   # ensure next environment is ready
+cd "$path"                                         # move into it
+wt rm <old-branch> --non-interactive               # now safe — no longer inside it
 ```
 
 `wt rm` blocks with an error if `$PWD` is inside the target worktree.
@@ -140,11 +141,11 @@ Check for stale environments, diverged branches, or missing tmux sessions before
 ## Rules
 
 **Do:**
-- Use `wt ensure <branch>` as the primary agent entry point — idempotent, creates if missing, returns path
-- Use `wt new <branch> <base>` when you need to control the base branch explicitly
-- Use `wt rm <branch> --yes` after `cd`-ing out of the worktree first
+- Use `wt open <branch> --non-interactive` to enter an existing worktree — prints path, no tmux attach
+- Use `wt new <branch> <base> --non-interactive` to create; errors if worktree already exists
+- Use `wt rm <branch> --non-interactive` after `cd`-ing out of the worktree first
 - Run `wt ls` and `wt status` freely — read-only
-- Tell the user to run `wt open`, `wt global`, and `wt rm` without `--yes` — those are human UI
+- Tell the user to run `wt open`, `wt global`, and `wt rm` without `--non-interactive` — those are human UI
 
 **Don't:**
 - Call `wt open` or `wt global` from agent code — they attach tmux sessions and are human UI
@@ -162,9 +163,8 @@ When `using-git-worktrees` reaches Step 1a ("is there a native worktree tool?"),
 
 - Calling `wt open` or `wt global` from agent code — these attach tmux (human UI layer)
 - Calling `wt new <branch>` without a base — fzf will block; always supply both args
-- Calling `wt rm` without `--yes` from agent code — requires interactive confirmation
-- Using `wt new` when you just need to enter an existing branch — use `wt ensure` instead (idempotent)
-- Using `wt ensure` when you need a specific base branch — it creates from the same-named branch; use `wt new <branch> <base>` when base matters
+- Calling `wt rm` without `--non-interactive` from agent code — requires interactive confirmation
+- Using `wt open <branch> --non-interactive` on a branch with no existing worktree — it errors; use `wt new <branch> <base> --non-interactive` to create first
 - Using `git worktree add` directly — tmux session won't be created
 - Looking for worktrees under `.worktrees/` — they live under `wt/`
 - Assuming a tmux session exists without checking `wt status` runtime column (🟢/⚪)

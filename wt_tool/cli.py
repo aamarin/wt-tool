@@ -61,7 +61,6 @@ def status() -> None:
     for wt in worktrees:
         if wt.bare or wt.branch is None:
             continue
-        # skip main worktree (not inside wt_dir_name)
         if cfg.wt_dir_name not in wt.path.parts:
             continue
 
@@ -88,34 +87,16 @@ def status() -> None:
     display.print_status_table(rows)
 
 
-@app.command()
-def ensure(
-    branch: Annotated[str, typer.Argument(help="Branch / worktree name")],
-) -> None:
-    """Ensure worktree + session exist (non-interactive). Prints path."""
-    cfg = load_config()
-    root = git.get_main_worktree_root()
-    wt_path = root / cfg.wt_dir_name / branch
-
-    if not wt_path.exists():
-        git.fetch_all(root)
-        git.add_worktree(root, branch, wt_path, branch)
-
-    session = tmux.make_session_name(branch)
-    tmux.ensure_session(session, wt_path, cfg.agent_cmd)
-    print(str(wt_path))
-
-
 @app.command(name="open")
 def open_cmd(
     branch: Annotated[Optional[str], typer.Argument(help="Branch to open")] = None,
+    non_interactive: Annotated[bool, typer.Option("--non-interactive", help="Print path and ensure session; no tmux attach")] = False,
 ) -> None:
     """Open a worktree session, using fzf selector if branch omitted."""
     cfg = load_config()
     root = git.get_main_worktree_root()
     worktrees = git.list_worktrees(root)
 
-    # filter to managed worktrees only
     managed = [
         wt for wt in worktrees
         if cfg.wt_dir_name in wt.path.parts and wt.branch
@@ -126,9 +107,10 @@ def open_cmd(
         raise typer.Exit(1)
 
     if branch is None:
-        choices = [
-            f"{wt.branch}\t{wt.path}" for wt in managed
-        ]
+        if non_interactive:
+            display.print_error("--non-interactive requires a branch argument")
+            raise typer.Exit(1)
+        choices = [f"{wt.branch}\t{wt.path}" for wt in managed]
         try:
             selected = fzf.run_fzf(
                 choices,
@@ -146,27 +128,39 @@ def open_cmd(
         match = next((wt for wt in managed if wt.branch == branch), None)
         if not match:
             display.print_error(f"No worktree for branch '{branch}'")
+            display.print_info(f"Run: wt new {branch} <base>")
             raise typer.Exit(1)
         wt_path = match.path
 
     session = tmux.make_session_name(branch)
     tmux.ensure_session(session, wt_path, cfg.agent_cmd)
-    tmux.attach(session)
+
+    if non_interactive:
+        print(str(wt_path))
+    else:
+        tmux.attach(session)
 
 
 @app.command()
 def new(
     branch: Annotated[Optional[str], typer.Argument(help="New branch name")] = None,
     base: Annotated[Optional[str], typer.Argument(help="Base branch")] = None,
+    non_interactive: Annotated[bool, typer.Option("--non-interactive", help="Error if args missing; no fzf, no tmux attach")] = False,
 ) -> None:
     """Create a new worktree and tmux session."""
     cfg = load_config()
     root = git.get_main_worktree_root()
 
     if branch is None:
+        if non_interactive:
+            display.print_error("--non-interactive requires branch and base arguments")
+            raise typer.Exit(1)
         branch = typer.prompt("New branch name")
 
     if base is None:
+        if non_interactive:
+            display.print_error("--non-interactive requires branch and base arguments")
+            raise typer.Exit(1)
         git.fetch_all(root)
         branches = git.list_branches(root)
         if not branches:
@@ -189,13 +183,17 @@ def new(
     session = tmux.make_session_name(branch)
     tmux.ensure_session(session, wt_path, cfg.agent_cmd)
     display.print_success(f"Created: {wt_path}")
-    tmux.attach(session)
+
+    if not non_interactive:
+        tmux.attach(session)
+    else:
+        print(str(wt_path))
 
 
 @app.command()
 def rm(
     branch: Annotated[str, typer.Argument(help="Branch / worktree to remove")],
-    yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation")] = False,
+    non_interactive: Annotated[bool, typer.Option("--non-interactive", help="Skip confirmation")] = False,
 ) -> None:
     """Remove a worktree, branch, and tmux session."""
     cfg = load_config()
@@ -211,7 +209,7 @@ def rm(
         display.print_error(f"No worktree found at {wt_path}")
         raise typer.Exit(1)
 
-    if not yes:
+    if not non_interactive:
         typer.confirm(f"Remove worktree + branch '{branch}'?", abort=True)
 
     git.remove_worktree(root, wt_path)
@@ -224,12 +222,16 @@ def rm(
 @app.command(name="global")
 def global_cmd(
     target: Annotated[Optional[str], typer.Argument(help="repo/branch to open directly")] = None,
+    non_interactive: Annotated[bool, typer.Option("--non-interactive", help="Error if no target; no fzf, no tmux attach")] = False,
 ) -> None:
     """Select a worktree across all repos under WT_PROJECTS_DIR."""
     cfg = load_config()
 
     projects_dir = resolve_projects_dir()
     if projects_dir is None:
+        if non_interactive:
+            display.print_error("WT_PROJECTS_DIR is not configured. Run: wt global")
+            raise typer.Exit(1)
         display.print_info("WT_PROJECTS_DIR is not configured.")
         raw = typer.prompt(
             "Where are your projects?",
@@ -268,6 +270,9 @@ def global_cmd(
             raise typer.Exit(1)
         selected = match
     else:
+        if non_interactive:
+            display.print_error("--non-interactive requires a repo/branch argument")
+            raise typer.Exit(1)
         try:
             selected = fzf.run_fzf(
                 choices,
@@ -285,10 +290,13 @@ def global_cmd(
     label = parts[0]
     branch = label.split("/", 1)[1] if "/" in label else label
 
-    # include repo name to avoid session collision across repos with same branch name
     session = tmux.make_session_name(f"{repo_name}__{branch}")
     tmux.ensure_session(session, wt_path, cfg.agent_cmd)
-    tmux.attach(session)
+
+    if non_interactive:
+        print(str(wt_path))
+    else:
+        tmux.attach(session)
 
 
 install_app = typer.Typer(name="install", help="Install wt integrations.", no_args_is_help=True)
