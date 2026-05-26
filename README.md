@@ -241,7 +241,9 @@ export WT_PROJECTS_DIR="$HOME/Development"  # root for wt global
 export WT_AGENT_CMD="claude"         # agent window command
 ```
 
-### Disabling the agent window
+### Disabling agent auto-launch
+
+The agent window is always created. To leave it at a bare shell (no command sent):
 
 ```bash
 wt config set agent-cmd ""
