@@ -8,6 +8,7 @@ from rich.text import Text
 from wt_tool.git import WorktreeInfo
 
 console = Console()
+err_console = Console(stderr=True)
 
 
 @dataclass
@@ -22,7 +23,7 @@ class StatusRow:
 
 
 def print_error(msg: str) -> None:
-    console.print(f"[red]✗[/red] {msg}", stderr=True)
+    err_console.print(f"[red]✗[/red] {msg}")
 
 
 def print_success(msg: str) -> None:

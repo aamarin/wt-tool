@@ -125,9 +125,20 @@ def list_branches(root: Path) -> list[str]:
     return sorted(branches)
 
 
+def _branch_exists(root: Path, branch: str) -> bool:
+    result = subprocess.run(
+        ["git", "rev-parse", "--verify", f"refs/heads/{branch}"],
+        cwd=root, capture_output=True,
+    )
+    return result.returncode == 0
+
+
 def add_worktree(root: Path, branch: str, wt_path: Path, base: str) -> None:
     fetch_all(root)
-    _run(["git", "worktree", "add", "-b", branch, str(wt_path), base], cwd=root)
+    if _branch_exists(root, branch):
+        _run(["git", "worktree", "add", str(wt_path), branch], cwd=root)
+    else:
+        _run(["git", "worktree", "add", "-b", branch, str(wt_path), base], cwd=root)
 
 
 def remove_worktree(root: Path, wt_path: Path) -> None:
