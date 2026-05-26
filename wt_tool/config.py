@@ -58,6 +58,16 @@ def save_agent_skills_dir(path: Path) -> None:
     _write_config_file(data)
 
 
+def resolve_agent_cmd() -> str | None:
+    """Returns the configured agent command, or None if never explicitly set."""
+    if "WT_AGENT_CMD" in os.environ:
+        return os.environ["WT_AGENT_CMD"]
+    data = _read_config_file()
+    if "agent_cmd" in data:
+        return data["agent_cmd"]
+    return None
+
+
 def save_agent_cmd(cmd: str) -> None:
     data = _read_config_file()
     data["agent_cmd"] = cmd

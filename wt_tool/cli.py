@@ -12,7 +12,7 @@ from wt_tool.config import (
     load_config,
     resolve_projects_dir, save_projects_dir,
     resolve_agent_skills_dir, save_agent_skills_dir,
-    save_agent_cmd,
+    resolve_agent_cmd, save_agent_cmd,
 )
 from wt_tool.display import StatusRow
 
@@ -186,11 +186,18 @@ def new(
         display.print_error(f"Worktree already exists: {wt_path}")
         raise typer.Exit(1)
 
+    agent_cmd = cfg.agent_cmd
+    if not non_interactive and resolve_agent_cmd() is None:
+        display.print_info("No agent command configured.")
+        raw = typer.prompt("Agent command (launched in agent window, leave blank to skip)", default="claude")
+        agent_cmd = raw.strip()
+        save_agent_cmd(agent_cmd)
+
     display.print_info(f"Creating worktree '{branch}' from '{base}'...")
     git.add_worktree(root, branch, wt_path, base)
 
     session = tmux.make_session_name(branch)
-    tmux.ensure_session(session, wt_path, cfg.agent_cmd)
+    tmux.ensure_session(session, wt_path, agent_cmd)
     display.print_success(f"Created: {wt_path}")
 
     if not non_interactive:
