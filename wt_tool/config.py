@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -18,7 +19,7 @@ def _read_config_file() -> dict:
         try:
             return json.loads(CONFIG_FILE.read_text())
         except json.JSONDecodeError:
-            pass
+            print(f"wt: warning: {CONFIG_FILE} contains invalid JSON, ignoring", file=sys.stderr)
     return {}
 
 

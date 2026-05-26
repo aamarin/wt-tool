@@ -26,15 +26,16 @@ def create_session(session: str, path: Path, agent_cmd: str) -> None:
         ["tmux", "new-window", "-t", f"={session}", "-n", "deploy", "-c", str(path)],
         check=True, capture_output=True,
     )
-    subprocess.run(
-        ["tmux", "new-window", "-t", f"={session}", "-n", "agent", "-c", str(path)],
-        check=True, capture_output=True,
-    )
-    # session:window target is intentional here — not a session name lookup
-    subprocess.run(
-        ["tmux", "send-keys", "-t", f"{session}:agent", agent_cmd, "Enter"],
-        check=True, capture_output=True,
-    )
+    if agent_cmd:
+        subprocess.run(
+            ["tmux", "new-window", "-t", f"={session}", "-n", "agent", "-c", str(path)],
+            check=True, capture_output=True,
+        )
+        # session:window target is intentional here — not a session name lookup
+        subprocess.run(
+            ["tmux", "send-keys", "-t", f"{session}:agent", agent_cmd, "Enter"],
+            check=True, capture_output=True,
+        )
 
 
 def kill_session(session: str) -> None:

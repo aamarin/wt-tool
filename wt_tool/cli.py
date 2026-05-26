@@ -7,6 +7,7 @@ from typing import Annotated, Optional
 import typer
 
 from wt_tool import git, tmux, fzf, display
+from wt_tool.git import WorktreeInfo
 from wt_tool.config import (
     load_config,
     resolve_projects_dir, save_projects_dir,
@@ -111,24 +112,27 @@ def open_cmd(
         if non_interactive:
             display.print_error("--non-interactive requires a branch argument")
             raise typer.Exit(1)
-        branches = display.print_open_table(managed)
-        while True:
+        display.print_open_table(managed)
+        selected: WorktreeInfo | None = None
+        while selected is None:
             try:
                 raw = typer.prompt("\nOpen [branch name or #]").strip()
             except (KeyboardInterrupt, typer.Abort):
                 raise typer.Exit(0)
             if raw.isdigit():
                 idx = int(raw)
-                if 1 <= idx <= len(branches):
-                    branch = branches[idx - 1]
-                    break
-                display.print_error(f"Enter a number between 1 and {len(branches)}")
-            elif raw in branches:
-                branch = raw
-                break
+                if 1 <= idx <= len(managed):
+                    selected = managed[idx - 1]
+                else:
+                    display.print_error(f"Enter a number between 1 and {len(managed)}")
             else:
-                display.print_error(f"Unknown branch '{raw}'")
-        wt_path = next(wt.path for wt in managed if wt.branch == branch)
+                match = next((wt for wt in managed if wt.branch == raw), None)
+                if match:
+                    selected = match
+                else:
+                    display.print_error(f"Unknown branch '{raw}'")
+        branch = selected.branch
+        wt_path = selected.path
     else:
         match = next((wt for wt in managed if wt.branch == branch), None)
         if not match:
