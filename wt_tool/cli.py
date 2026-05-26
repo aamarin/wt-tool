@@ -93,7 +93,7 @@ def open_cmd(
     branch: Annotated[Optional[str], typer.Argument(help="Branch to open")] = None,
     non_interactive: Annotated[bool, typer.Option("--non-interactive", help="Print path and ensure session; no tmux attach")] = False,
 ) -> None:
-    """Open a worktree session, using fzf selector if branch omitted."""
+    """Open a worktree session, using an interactive table if branch omitted."""
     cfg = load_config()
     root = git.get_main_worktree_root()
     worktrees = git.list_worktrees(root)
@@ -111,20 +111,24 @@ def open_cmd(
         if non_interactive:
             display.print_error("--non-interactive requires a branch argument")
             raise typer.Exit(1)
-        choices = [f"{wt.branch}\t{wt.path}" for wt in managed]
-        try:
-            selected = fzf.run_fzf(
-                choices,
-                prompt="open > ",
-                preview_cmd=_OPEN_PREVIEW,
-                delimiter="\t",
-                with_nth="1",
-            )
-        except fzf.FzfAborted:
-            raise typer.Exit(0)
-        parts = selected.split("\t", maxsplit=1)
-        branch = parts[0]
-        wt_path = Path(parts[1])
+        branches = display.print_open_table(managed)
+        while True:
+            try:
+                raw = typer.prompt("\nOpen [branch name or #]").strip()
+            except (KeyboardInterrupt, typer.Abort):
+                raise typer.Exit(0)
+            if raw.isdigit():
+                idx = int(raw)
+                if 1 <= idx <= len(branches):
+                    branch = branches[idx - 1]
+                    break
+                display.print_error(f"Enter a number between 1 and {len(branches)}")
+            elif raw in branches:
+                branch = raw
+                break
+            else:
+                display.print_error(f"Unknown branch '{raw}'")
+        wt_path = next(wt.path for wt in managed if wt.branch == branch)
     else:
         match = next((wt for wt in managed if wt.branch == branch), None)
         if not match:
