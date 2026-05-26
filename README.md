@@ -156,18 +156,6 @@ wt open 264-auth-flow         # open directly by name
 
 Preview shows git status, diff, or recent commits depending on working tree state.
 
-### `wt ensure <branch>`
-
-Non-interactive: ensure a worktree and session exist, print the path.
-Designed for scripting and agent use.
-
-```bash
-path=$(wt ensure 264-auth-flow)
-cd "$path"
-```
-
-If the worktree doesn't exist, it is created from the branch of the same name.
-
 ### `wt global [repo/branch]`
 
 Select across all repos under `WT_PROJECTS_DIR`.
@@ -209,13 +197,13 @@ List all worktrees in the current repo.
 wt ls
 ```
 
-### `wt rm <branch> [--yes]`
+### `wt rm <branch>`
 
 Remove a worktree, delete the branch, and kill the tmux session.
 
 ```bash
-wt rm 264-auth-flow           # prompts for confirmation
-wt rm 264-auth-flow --yes     # skip confirmation
+wt rm 264-auth-flow                       # prompts for confirmation
+wt rm 264-auth-flow --non-interactive     # skip confirmation
 ```
 
 Cannot remove a worktree you are currently inside.
@@ -232,23 +220,32 @@ wt prune
 
 ## Configuration
 
-All configuration is via environment variables. Add to your shell profile:
+### Persistent config (recommended)
+
+Use `wt config set` to save values to `~/.config/wt/config.json`:
 
 ```bash
-# Directory name for worktrees (default: wt)
-export WT_DIR_NAME="wt"
+wt config set agent-cmd "claude --model claude-opus-4-7"
+wt config set projects-dir ~/Work
+wt config show   # inspect current values
+```
 
-# Root directory scanned by `wt global` (default: ~/Development)
-export WT_PROJECTS_DIR="$HOME/Development"
+### Environment variables
 
-# Command launched in the agent tmux window (default: claude)
-export WT_AGENT_CMD="claude"
+Env vars take precedence over saved config. Add to your shell profile for
+machine-level overrides:
+
+```bash
+export WT_DIR_NAME="wt"              # worktree directory name (default: wt)
+export WT_PROJECTS_DIR="$HOME/Development"  # root for wt global
+export WT_AGENT_CMD="claude"         # agent window command
 ```
 
 ### Disabling the agent window
 
 ```bash
-export WT_AGENT_CMD=""
+wt config set agent-cmd ""
+# or: export WT_AGENT_CMD=""
 ```
 
 ---
@@ -261,12 +258,12 @@ Add a shell function to `cd` into a worktree in your current shell:
 # ~/.zshrc or ~/.bashrc
 function wo() {
   local path
-  path=$(wt ensure "$1") && cd "$path"
+  path=$(wt open "$1" --non-interactive) && cd "$path"
 }
 ```
 
 ```bash
-wo 264-auth-flow    # cd into that worktree, creating it if needed
+wo 264-auth-flow    # cd into that worktree
 ```
 
 ---
