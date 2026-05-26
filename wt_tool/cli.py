@@ -11,6 +11,7 @@ from wt_tool.config import (
     load_config,
     resolve_projects_dir, save_projects_dir,
     resolve_agent_skills_dir, save_agent_skills_dir,
+    save_agent_cmd,
 )
 from wt_tool.display import StatusRow
 
@@ -297,6 +298,38 @@ def global_cmd(
         print(str(wt_path))
     else:
         tmux.attach(session)
+
+
+config_app = typer.Typer(name="config", help="Get and set wt configuration.", no_args_is_help=True)
+app.add_typer(config_app)
+
+_VALID_KEYS = ("agent-cmd", "projects-dir")
+
+
+@config_app.command(name="set")
+def config_set(
+    key: Annotated[str, typer.Argument(help=f"Config key: {', '.join(_VALID_KEYS)}")],
+    value: Annotated[str, typer.Argument(help="Value to set")],
+) -> None:
+    """Set a configuration value."""
+    if key == "agent-cmd":
+        save_agent_cmd(value)
+        display.print_success(f"agent-cmd = {value}")
+    elif key == "projects-dir":
+        save_projects_dir(Path(value).expanduser().resolve())
+        display.print_success(f"projects-dir = {value}")
+    else:
+        display.print_error(f"Unknown key '{key}'. Valid keys: {', '.join(_VALID_KEYS)}")
+        raise typer.Exit(1)
+
+
+@config_app.command(name="show")
+def config_show() -> None:
+    """Show current configuration (file + env)."""
+    cfg = load_config()
+    typer.echo(f"agent-cmd    = {cfg.agent_cmd}")
+    typer.echo(f"projects-dir = {cfg.projects_dir}")
+    typer.echo(f"wt-dir-name  = {cfg.wt_dir_name}")
 
 
 install_app = typer.Typer(name="install", help="Install wt integrations.", no_args_is_help=True)
