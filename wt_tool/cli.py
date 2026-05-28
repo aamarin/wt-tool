@@ -137,13 +137,20 @@ def open_cmd(
             if raw.isdigit():
                 idx = int(raw)
                 if 1 <= idx <= len(managed):
-                    selected = managed[idx - 1]
+                    if open_rows[idx - 1].is_missing:
+                        display.print_error(f"'{managed[idx - 1].branch}' is missing on disk — run `wt prune` to clean up.")
+                    else:
+                        selected = managed[idx - 1]
                 else:
                     display.print_error(f"Enter a number between 1 and {len(managed)}")
             else:
                 match = next((wt for wt in managed if wt.branch == raw), None)
                 if match:
-                    selected = match
+                    match_idx = managed.index(match)
+                    if open_rows[match_idx].is_missing:
+                        display.print_error(f"'{raw}' is missing on disk — run `wt prune` to clean up.")
+                    else:
+                        selected = match
                 else:
                     display.print_error(f"Unknown branch '{raw}'")
         branch = selected.branch
@@ -326,6 +333,9 @@ def global_cmd(
         except ValueError:
             display.print_error(f"No worktree found for '{target}'")
             raise typer.Exit(1)
+        if open_rows[idx].is_missing:
+            display.print_error(f"'{target}' is missing on disk — run `wt prune` to clean up.")
+            raise typer.Exit(1)
         wt_path = wt_paths[idx]
         repo_name = repo_names[idx]
         branch = branches[idx]
@@ -348,12 +358,19 @@ def global_cmd(
             if raw.isdigit():
                 i = int(raw)
                 if 1 <= i <= len(labels):
-                    selected_idx = i - 1
+                    if open_rows[i - 1].is_missing:
+                        display.print_error(f"'{labels[i - 1]}' is missing on disk — run `wt prune` to clean up.")
+                    else:
+                        selected_idx = i - 1
                 else:
                     display.print_error(f"Enter a number between 1 and {len(labels)}")
             else:
                 try:
-                    selected_idx = labels.index(raw)
+                    candidate = labels.index(raw)
+                    if open_rows[candidate].is_missing:
+                        display.print_error(f"'{raw}' is missing on disk — run `wt prune` to clean up.")
+                    else:
+                        selected_idx = candidate
                 except ValueError:
                     display.print_error(f"Unknown entry '{raw}'")
 

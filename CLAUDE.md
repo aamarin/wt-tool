@@ -26,11 +26,17 @@ wt_tool/
 ├── config.py    # Config dataclass; env vars take precedence over config file
 ├── git.py       # porcelain parser + subprocess wrappers
 ├── tmux.py      # session lifecycle; attach via os.execvp (replaces process)
-├── fzf.py       # interactive picker wrapper
+├── fzf.py       # interactive picker wrapper (used only by wt new for base-branch selection)
 └── display.py   # rich tables and styled output
 ```
 
 `wt` pairs each git worktree with a tmux session. The worktree layout is `{repo-root}/wt/{branch}/`. Sessions for `wt global` are namespaced `{repo_name}__{branch}` to avoid collisions across repos.
+
+### Picker UI
+
+`wt open` and `wt global` use a Rich table + numbered prompt (not fzf). The table shows `# | Branch | State | Sync | Age | Path` with live status. Missing/stale worktree paths render as `✗ missing` and cannot be selected — the user is told to run `wt prune`.
+
+`wt new` is the only command that uses fzf — for interactive base-branch selection when the base is not supplied as an argument.
 
 ### Key design decisions
 
@@ -38,7 +44,7 @@ wt_tool/
 
 **Config resolution precedence.** Env vars (`WT_DIR_NAME`, `WT_PROJECTS_DIR`, `WT_AGENT_CMD`) always override `~/.config/wt/config.json`. `load_config()` returns a frozen `Config` dataclass; individual `resolve_*()` functions return `None` when a value was never explicitly set (used to prompt users on first run).
 
-**`--non-interactive` flag.** All commands that touch fzf or tmux attach support `--non-interactive`: errors if required args are missing, prints the worktree path to stdout, and skips tmux attach. Used by shell functions (`wo`) to get a path for `cd`.
+**`--non-interactive` flag.** All commands that touch interactive UI or tmux attach support `--non-interactive`: errors if required args are missing, prints the worktree path to stdout, and skips tmux attach. Used by shell functions (`wo`) to get a path for `cd`.
 
 **`tmux.attach()` uses `os.execvp`.** This replaces the `wt` process with tmux — the calling shell's job control sees tmux directly, not a subprocess.
 
