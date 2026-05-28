@@ -85,6 +85,44 @@ def get_main_worktree_root() -> Path:
     return worktrees[0].path
 
 
+def get_main_worktree_root_silent() -> Optional[Path]:
+    """Returns the main worktree root, or None on any failure (no stderr output)."""
+    try:
+        result = subprocess.run(
+            ["git", "worktree", "list", "--porcelain"],
+            capture_output=True, text=True,
+        )
+        if result.returncode != 0:
+            return None
+        worktrees = parse_worktrees(result.stdout)
+        return worktrees[0].path if worktrees else None
+    except Exception:
+        return None
+
+
+def list_branches_silent(root: Path) -> list[str]:
+    """Returns branch list, or [] on any failure (no stderr output)."""
+    try:
+        result = subprocess.run(
+            ["git", "for-each-ref", "--format=%(refname:short)", "refs/heads/", "refs/remotes/"],
+            cwd=root, capture_output=True, text=True,
+        )
+        if result.returncode != 0:
+            return []
+        seen: set[str] = set()
+        branches: list[str] = []
+        for b in result.stdout.splitlines():
+            short = b.removeprefix("origin/")
+            if short == "HEAD" or short.endswith("/HEAD"):
+                continue
+            if short not in seen:
+                seen.add(short)
+                branches.append(short)
+        return sorted(branches)
+    except Exception:
+        return []
+
+
 def list_worktrees(root: Path) -> list[WorktreeInfo]:
     out = _run(["git", "worktree", "list", "--porcelain"], cwd=root)
     return parse_worktrees(out + "\n")

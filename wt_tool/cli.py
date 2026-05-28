@@ -20,7 +20,6 @@ app = typer.Typer(
     name="wt",
     help="git worktree + tmux workflow tool",
     no_args_is_help=False,
-    add_completion=False,
     invoke_without_command=True,
 )
 
@@ -40,6 +39,42 @@ _OPEN_PREVIEW = (
     '  echo "== LAST COMMITS =="; git -C "{2}" log --oneline -5; '
     'fi'
 )
+
+
+def _complete_managed_branches() -> list[str]:
+    cfg = load_config()
+    root = git.get_main_worktree_root_silent()
+    if root is None:
+        return []
+    worktrees = git.list_worktrees_silent(root)
+    return [wt.branch for wt in worktrees if wt.path.is_relative_to(root / cfg.wt_dir_name) and wt.branch]
+
+
+def _complete_base_branches() -> list[str]:
+    root = git.get_main_worktree_root_silent()
+    if root is None:
+        return []
+    return git.list_branches_silent(root)
+
+
+def _complete_global_targets() -> list[str]:
+    try:
+        cfg = load_config()
+        projects_dir = resolve_projects_dir()
+        if projects_dir is None:
+            return []
+        wt_dirs = [p for p in projects_dir.glob(f"*/{cfg.wt_dir_name}") if p.is_dir()]
+        choices = []
+        for wt_dir in sorted(wt_dirs):
+            repo_root = wt_dir.parent
+            repo_name = git.get_repo_name(repo_root)
+            for wt in git.list_worktrees_silent(repo_root):
+                if not wt.path.is_relative_to(repo_root / cfg.wt_dir_name) or not wt.branch:
+                    continue
+                choices.append(f"{repo_name}/{wt.branch}")
+        return choices
+    except Exception:
+        return []
 
 
 @app.command()
@@ -99,7 +134,7 @@ def status() -> None:
 
 @app.command(name="open")
 def open_cmd(
-    branch: Annotated[Optional[str], typer.Argument(help="Branch to open")] = None,
+    branch: Annotated[Optional[str], typer.Argument(help="Branch to open", autocompletion=_complete_managed_branches)] = None,
     non_interactive: Annotated[bool, typer.Option("--non-interactive", help="Print path and ensure session; no tmux attach")] = False,
 ) -> None:
     """Open a worktree session, using an interactive table if branch omitted."""
@@ -162,7 +197,7 @@ def open_cmd(
 @app.command()
 def new(
     branch: Annotated[Optional[str], typer.Argument(help="New branch name")] = None,
-    base: Annotated[Optional[str], typer.Argument(help="Base branch")] = None,
+    base: Annotated[Optional[str], typer.Argument(help="Base branch", autocompletion=_complete_base_branches)] = None,
     non_interactive: Annotated[bool, typer.Option("--non-interactive", help="Error if args missing; no fzf, no tmux attach")] = False,
 ) -> None:
     """Create a new worktree and tmux session."""
@@ -218,7 +253,7 @@ def new(
 
 @app.command()
 def rm(
-    branch: Annotated[str, typer.Argument(help="Branch / worktree to remove")],
+    branch: Annotated[str, typer.Argument(help="Branch / worktree to remove", autocompletion=_complete_managed_branches)],
     non_interactive: Annotated[bool, typer.Option("--non-interactive", help="Skip confirmation")] = False,
 ) -> None:
     """Remove a worktree, branch, and tmux session."""
@@ -248,7 +283,7 @@ def rm(
 
 @app.command(name="global")
 def global_cmd(
-    target: Annotated[Optional[str], typer.Argument(help="repo/branch to open directly")] = None,
+    target: Annotated[Optional[str], typer.Argument(help="repo/branch to open directly", autocompletion=_complete_global_targets)] = None,
     non_interactive: Annotated[bool, typer.Option("--non-interactive", help="Error if no target; no fzf, no tmux attach")] = False,
 ) -> None:
     """Select a worktree across all repos under WT_PROJECTS_DIR."""
