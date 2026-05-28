@@ -32,18 +32,18 @@ class TestHasSession:
 
 
 class TestMakeSessionName:
-    def test_returns_branch_as_is(self):
-        assert make_session_name("264-admin") == "264-admin"
-        assert make_session_name("main") == "main"
+    def test_namespaces_with_repo(self):
+        assert make_session_name("myrepo", "264-admin") == "myrepo__264-admin"
+        assert make_session_name("myrepo", "main") == "myrepo__main"
 
     def test_no_colons(self):
-        name = make_session_name("my-branch")
+        name = make_session_name("myrepo", "my-branch")
         assert ":" not in name
 
     def test_sanitizes_colons(self):
         # tmux interprets colons as session:window:pane separator
-        assert make_session_name("feat:my-feature") == "feat-my-feature"
-        assert make_session_name("a:b:c") == "a-b-c"
+        assert make_session_name("myrepo", "feat:my-feature") == "myrepo__feat-my-feature"
+        assert make_session_name("myrepo", "a:b:c") == "myrepo__a-b-c"
 
 
 class TestEnsureSession:

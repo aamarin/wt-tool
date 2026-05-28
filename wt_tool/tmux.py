@@ -3,9 +3,9 @@ import subprocess
 from pathlib import Path
 
 
-def make_session_name(branch: str) -> str:
+def make_session_name(repo: str, branch: str) -> str:
     # tmux parses colons as session:window:pane — replace with dash
-    return branch.replace(":", "-")
+    return f"{repo}__{branch}".replace(":", "-")
 
 
 def has_session(session: str) -> bool:
