@@ -19,9 +19,16 @@ from wt_tool.display import StatusRow
 app = typer.Typer(
     name="wt",
     help="git worktree + tmux workflow tool",
-    no_args_is_help=True,
+    no_args_is_help=False,
     add_completion=False,
+    invoke_without_command=True,
 )
+
+
+@app.callback()
+def default(ctx: typer.Context) -> None:
+    if ctx.invoked_subcommand is None:
+        open_cmd()
 
 _OPEN_PREVIEW = (
     'echo "== PATH =="; echo "{2}"; echo; '
