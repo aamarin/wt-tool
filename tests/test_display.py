@@ -1,24 +1,79 @@
+import time
 from pathlib import Path
 
-from wt_tool.display import print_open_table
-from wt_tool.git import WorktreeInfo
+from wt_tool.display import OpenRow, print_open_table, _format_sync, _format_age
 
 
-def _wt(branch: str) -> WorktreeInfo:
-    return WorktreeInfo(path=Path(f"/repo/wt/{branch}"), head="abc123", branch=branch)
+def _row(label: str, **kwargs) -> OpenRow:
+    defaults = dict(
+        path=f"/repo/wt/{label}",
+        is_dirty=False,
+        ahead=0,
+        behind=0,
+        last_commit_ts=0,
+        is_missing=False,
+    )
+    defaults.update(kwargs)
+    return OpenRow(label=label, **defaults)
 
 
 class TestPrintOpenTable:
-    def test_returns_branches_in_order(self):
-        worktrees = [_wt("feat/a"), _wt("fix/b"), _wt("chore/c")]
-        branches = print_open_table(worktrees)
-        assert branches == ["feat/a", "fix/b", "chore/c"]
+    def test_renders_without_error(self):
+        rows = [_row("feat/a"), _row("fix/b"), _row("chore/c")]
+        print_open_table(rows)
 
-    def test_single_worktree(self):
-        branches = print_open_table([_wt("main")])
-        assert branches == ["main"]
+    def test_single_row(self):
+        print_open_table([_row("main")])
 
-    def test_detached_head(self):
-        wt = WorktreeInfo(path=Path("/repo/wt/detached"), head="abc123", branch=None)
-        branches = print_open_table([wt])
-        assert branches == ["detached"]
+    def test_missing_row(self):
+        print_open_table([_row("stale-branch", is_missing=True)])
+
+    def test_dirty_row(self):
+        print_open_table([_row("feat/wip", is_dirty=True)])
+
+    def test_mixed_status(self):
+        rows = [
+            _row("feat/a", is_dirty=True, ahead=2, last_commit_ts=int(time.time()) - 3600),
+            _row("fix/b", behind=1, last_commit_ts=int(time.time()) - 86400),
+            _row("stale", is_missing=True),
+        ]
+        print_open_table(rows)
+
+    def test_global_style_labels(self):
+        rows = [
+            _row("myrepo/feat/a"),
+            _row("other-repo/main"),
+        ]
+        print_open_table(rows)
+
+
+class TestFormatSync:
+    def test_ahead_only(self):
+        assert "↑3" in _format_sync(3, 0)
+
+    def test_behind_only(self):
+        assert "↓5" in _format_sync(0, 5)
+
+    def test_diverged(self):
+        result = _format_sync(2, 4)
+        assert "2↑" in result
+        assert "4↓" in result
+
+    def test_in_sync(self):
+        assert _format_sync(0, 0) == "[dim]-[/dim]"
+
+
+class TestFormatAge:
+    def test_no_timestamp(self):
+        assert _format_age(0, 1000, 259200) == "[dim]-[/dim]"
+
+    def test_recent(self):
+        now = int(time.time())
+        result = _format_age(now - 3600, now, 259200)
+        assert "h" in result
+
+    def test_stale_highlighted(self):
+        now = int(time.time())
+        ts = now - (4 * 24 * 3600)
+        result = _format_age(ts, now, 259200)
+        assert "yellow" in result
