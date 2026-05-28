@@ -24,7 +24,7 @@ uv run pytest tests/test_tmux.py::TestMakeSessionName::test_sanitizes_colons -v
 
 **Module responsibilities:**
 
-- `cli.py` — Typer app with all commands (`new`, `open`, `rm`, `ls`, `status`, `prune`, `global`, `config set/show`, `install agent-skill`). Thin handlers that delegate to the other modules. Completion is intentionally disabled (`add_completion=False`).
+- `cli.py` — Typer app with all commands (`new`, `open`, `rm`, `ls`, `status`, `prune`, `global`, `config set/show`, `install agent-skill`). Thin handlers that delegate to the other modules. Shell completion is enabled; custom `autocompletion=` callbacks in `open`, `rm`, `new`, and `global` provide branch/target completions using silent git helpers that never print to stderr.
 - `config.py` — Config resolution: env vars take precedence over `~/.config/wt/config.json`. `load_config()` always returns a fully-resolved `Config` dataclass; individual `resolve_*()` functions return `None` when a value was never explicitly set (used to detect first-run prompts).
 - `git.py` — Two layers: a pure `parse_worktrees()` function that parses `git worktree list --porcelain` output (no subprocess, fully testable), and subprocess wrappers for git operations. `_run()` calls `typer.Exit(1)` on failure.
 - `tmux.py` — Session lifecycle. Each worktree gets a session with three windows: `term`, `deploy`, `agent`. `attach()` uses `os.execvp` to replace the current process with tmux (switches client if already inside tmux, otherwise attaches).

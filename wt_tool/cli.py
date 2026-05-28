@@ -35,21 +35,19 @@ _OPEN_PREVIEW = (
 
 
 def _complete_managed_branches() -> list[str]:
-    try:
-        cfg = load_config()
-        root = git.get_main_worktree_root()
-        worktrees = git.list_worktrees(root)
-        return [wt.branch for wt in worktrees if cfg.wt_dir_name in wt.path.parts and wt.branch]
-    except (Exception, SystemExit):
+    cfg = load_config()
+    root = git.get_main_worktree_root_silent()
+    if root is None:
         return []
+    worktrees = git.list_worktrees_silent(root)
+    return [wt.branch for wt in worktrees if wt.path.is_relative_to(root / cfg.wt_dir_name) and wt.branch]
 
 
 def _complete_base_branches() -> list[str]:
-    try:
-        root = git.get_main_worktree_root()
-        return git.list_branches(root)
-    except (Exception, SystemExit):
+    root = git.get_main_worktree_root_silent()
+    if root is None:
         return []
+    return git.list_branches_silent(root)
 
 
 def _complete_global_targets() -> list[str]:
@@ -64,11 +62,11 @@ def _complete_global_targets() -> list[str]:
             repo_root = wt_dir.parent
             repo_name = git.get_repo_name(repo_root)
             for wt in git.list_worktrees_silent(repo_root):
-                if cfg.wt_dir_name not in wt.path.parts or not wt.branch:
+                if not wt.path.is_relative_to(repo_root / cfg.wt_dir_name) or not wt.branch:
                     continue
                 choices.append(f"{repo_name}/{wt.branch}")
         return choices
-    except (Exception, SystemExit):
+    except Exception:
         return []
 
 
