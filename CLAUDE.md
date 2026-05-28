@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-# Dev install (changes take effect without reinstall)
+# Development install (edits take effect immediately)
 uv tool install --editable .
 
 # Run all tests
@@ -14,23 +14,34 @@ uv run pytest tests/ -v
 # Run a single test file
 uv run pytest tests/test_git_parser.py -v
 
-# Run a single test
-uv run pytest tests/test_git_parser.py::TestParseWorktrees::test_detached_head_branch_is_none -v
+# Run a single test by name
+uv run pytest tests/test_tmux.py::TestMakeSessionName::test_sanitizes_colons -v
 ```
 
 ## Architecture
 
+`wt` is a CLI tool that pairs git worktrees with tmux sessions. It is installed as the `wt` binary via `uv tool install`.
+
+**Module responsibilities:**
+
+- `cli.py` — Typer app with all commands (`new`, `open`, `rm`, `ls`, `status`, `prune`, `global`, `config set/show`, `install agent-skill`). Thin handlers that delegate to the other modules. Shell completion is enabled; custom `autocompletion=` callbacks in `open`, `rm`, `new`, and `global` provide branch/target completions using silent git helpers that never print to stderr.
+- `config.py` — Config resolution: env vars take precedence over `~/.config/wt/config.json`. `load_config()` always returns a fully-resolved `Config` dataclass; individual `resolve_*()` functions return `None` when a value was never explicitly set (used to detect first-run prompts).
+- `git.py` — Two layers: a pure `parse_worktrees()` function that parses `git worktree list --porcelain` output (no subprocess, fully testable), and subprocess wrappers for git operations. `_run()` calls `typer.Exit(1)` on failure.
+- `tmux.py` — Session lifecycle. Each worktree gets a session with three windows: `term`, `deploy`, `agent`. `attach()` uses `os.execvp` to replace the current process with tmux (switches client if already inside tmux, otherwise attaches).
+- `fzf.py` — Thin wrapper around the `fzf` binary. Raises `FzfAborted` on exit codes 1 or 130 (no selection / Ctrl-C).
+- `display.py` — Rich tables and status messages. Errors go to `err_console` (stderr); success/info go to `console` (stdout).
+
+**Worktree layout convention:**
+
 ```
-wt_tool/
-├── cli.py       # typer app — thin command handlers, all user-facing logic
-├── config.py    # Config dataclass; env vars take precedence over config file
-├── git.py       # porcelain parser + subprocess wrappers
-├── tmux.py      # session lifecycle; attach via os.execvp (replaces process)
-├── fzf.py       # interactive picker wrapper (used only by wt new for base-branch selection)
-└── display.py   # rich tables and styled output
+repo-root/
+├── .git/
+└── wt/           ← controlled by WT_DIR_NAME (default: "wt")
+    ├── branch-a/
+    └── branch-b/
 ```
 
-`wt` pairs each git worktree with a tmux session. The worktree layout is `{repo-root}/wt/{branch}/`. Sessions for `wt global` are namespaced `{repo_name}__{branch}` to avoid collisions across repos.
+`wt global` scans `WT_PROJECTS_DIR` for `*/wt/` directories and namespaces tmux sessions as `{repo}__{branch}` to avoid cross-repo collisions.
 
 ### Picker UI
 
@@ -38,22 +49,14 @@ wt_tool/
 
 `wt new` is the only command that uses fzf — for interactive base-branch selection when the base is not supplied as an argument.
 
-### Key design decisions
-
-**Pure functions vs subprocess boundaries.** `parse_worktrees()` and `parse_ahead_behind()` in `git.py` are pure parsers tested without mocking. All subprocess calls (tmux, fzf, git) are isolated at module boundaries and tested with `pytest-mock`.
-
-**Config resolution precedence.** Env vars (`WT_DIR_NAME`, `WT_PROJECTS_DIR`, `WT_AGENT_CMD`) always override `~/.config/wt/config.json`. `load_config()` returns a frozen `Config` dataclass; individual `resolve_*()` functions return `None` when a value was never explicitly set (used to prompt users on first run).
-
-**`--non-interactive` flag.** All commands that touch interactive UI or tmux attach support `--non-interactive`: errors if required args are missing, prints the worktree path to stdout, and skips tmux attach. Used by shell functions (`wo`) to get a path for `cd`.
-
-**`tmux.attach()` uses `os.execvp`.** This replaces the `wt` process with tmux — the calling shell's job control sees tmux directly, not a subprocess.
-
-**tmux session names.** Colons are replaced with dashes because tmux parses `session:window:pane` on the `:` character.
-
-### Configuration
-
-Persistent config lives at `~/.config/wt/config.json`. The `wt config set` command writes individual keys without clobbering others. `agent-cmd` and `projects-dir` are the only user-settable keys; `wt-dir-name` is env-var only (`WT_DIR_NAME`).
-
 ### Agent skill
 
 The `using-wt` skill in `wt_tool/skills/using-wt/` is bundled in the package and installed via `wt install agent-skill`. The install destination is saved to `agent_skills_dir` in the config file so upgrades reuse it.
+
+## Testing approach
+
+Pure functions (`parse_worktrees`, `parse_ahead_behind`, config defaults) are tested without mocking. Subprocess boundaries (`tmux`, `fzf`, `git`) are tested with `pytest-mock`. The test suite does not hit a real filesystem or real git repo for unit tests.
+
+## Config file
+
+`~/.config/wt/config.json` — keys: `agent_cmd`, `projects_dir`, `agent_skills_dir`. Env vars (`WT_AGENT_CMD`, `WT_PROJECTS_DIR`, `WT_DIR_NAME`) override file values at runtime.
