@@ -8,6 +8,7 @@ import typer
 
 from wt_tool import git, tmux, display
 from wt_tool.git import WorktreeInfo
+from wt_tool.display import StatusRow
 from wt_tool.config import (
     load_config,
     resolve_projects_dir, save_projects_dir,
@@ -18,10 +19,17 @@ from wt_tool.config import (
 app = typer.Typer(
     name="wt",
     help="git worktree + tmux workflow tool",
-    no_args_is_help=True,
+    no_args_is_help=False,
     add_completion=False,
+    invoke_without_command=True,
 )
 
+
+
+@app.callback()
+def default(ctx: typer.Context) -> None:
+    if ctx.invoked_subcommand is None:
+        open_cmd()
 
 @app.command()
 def ls() -> None:
@@ -47,6 +55,7 @@ def status() -> None:
     root = git.get_main_worktree_root()
     worktrees = git.list_worktrees(root)
 
+    repo_name = git.get_repo_name(root)
     rows: list[StatusRow] = []
     for wt in worktrees:
         if wt.bare or wt.branch is None:
@@ -58,7 +67,7 @@ def status() -> None:
         sb_line = git.get_status_sb(wt.path)
         ahead, behind = git.parse_ahead_behind(sb_line)
         ts = git.get_last_commit_timestamp(wt.path)
-        session = tmux.make_session_name(wt.branch)
+        session = tmux.make_session_name(repo_name, wt.branch)
         active = tmux.has_session(session)
 
         rows.append(StatusRow(
@@ -163,7 +172,8 @@ def open_cmd(
             raise typer.Exit(1)
         wt_path = match.path
 
-    session = tmux.make_session_name(branch)
+    repo_name = git.get_repo_name(root)
+    session = tmux.make_session_name(repo_name, branch)
     tmux.ensure_session(session, wt_path, cfg.agent_cmd)
 
     if non_interactive:
@@ -218,7 +228,8 @@ def new(
     display.print_info(f"Creating worktree '{branch}' from '{base}'...")
     git.add_worktree(root, branch, wt_path, base)
 
-    session = tmux.make_session_name(branch)
+    repo_name = git.get_repo_name(root)
+    session = tmux.make_session_name(repo_name, branch)
     tmux.ensure_session(session, wt_path, agent_cmd)
     display.print_success(f"Created: {wt_path}")
 
@@ -252,7 +263,8 @@ def rm(
 
     git.remove_worktree(root, wt_path)
     git.delete_branch(root, branch)
-    session = tmux.make_session_name(branch)
+    repo_name = git.get_repo_name(root)
+    session = tmux.make_session_name(repo_name, branch)
     tmux.kill_session(session)
     display.print_success(f"Removed '{branch}'")
 
@@ -378,7 +390,7 @@ def global_cmd(
         repo_name = repo_names[selected_idx]
         branch = branches[selected_idx]
 
-    session = tmux.make_session_name(f"{repo_name}__{branch}")
+    session = tmux.make_session_name(repo_name, branch)
     tmux.ensure_session(session, wt_path, cfg.agent_cmd)
 
     if non_interactive:

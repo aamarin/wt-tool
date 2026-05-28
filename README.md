@@ -8,8 +8,8 @@ without losing running processes, staged changes, or shell history.
 
 ```
 wt new 264-auth-flow main    # new branch → worktree + tmux session
-wt open                      # fzf picker across all worktrees
-wt global                    # fzf picker across all repos
+wt open                      # table picker: branch, state, sync, age
+wt global                    # same table picker across all repos
 wt status                    # health check: dirty, sync, age, sessions
 ```
 
@@ -31,7 +31,7 @@ agent in a dedicated window.
 | Python | ≥ 3.11 | runtime |
 | git | ≥ 2.15 | worktree support |
 | tmux | ≥ 3.2 | session management |
-| fzf | any | interactive selection |
+| fzf | any | base-branch selection in `wt new` |
 | uv | any | installation |
 
 Install dependencies on macOS:
@@ -147,21 +147,22 @@ wt new 264-auth-flow main     # base branch specified
 
 ### `wt open [branch]`
 
-Open an existing worktree session.
+Open an existing worktree session. Running `wt` with no arguments is equivalent.
 
 ```bash
-wt open                       # fzf picker with live preview
+wt                            # same as wt open
+wt open                       # Rich table with branch, state, sync, age — select by # or name
 wt open 264-auth-flow         # open directly by name
 ```
 
-Preview shows git status, diff, or recent commits depending on working tree state.
+Worktrees missing on disk show `✗ missing` and cannot be selected; run `wt prune` to remove them.
 
 ### `wt global [repo/branch]`
 
 Select across all repos under `WT_PROJECTS_DIR`.
 
 ```bash
-wt global                     # fzf picker across all managed repos
+wt global                     # Rich table across all managed repos — entries as repo/branch
 wt global myrepo/264-auth     # open directly
 ```
 
@@ -278,7 +279,7 @@ wt_tool/
 ├── config.py    # env var resolution
 ├── git.py       # porcelain parser + subprocess wrappers
 ├── tmux.py      # session lifecycle; attach via os.execvp
-├── fzf.py       # interactive selector
+├── fzf.py       # base-branch picker (used only by wt new)
 └── display.py   # rich tables
 ```
 
