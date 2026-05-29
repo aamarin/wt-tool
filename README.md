@@ -278,7 +278,6 @@ wt_tool/
 ├── config.py    # env var resolution
 ├── git.py       # porcelain parser + subprocess wrappers
 ├── tmux.py      # session lifecycle; attach via os.execvp
-├── fzf.py       # legacy fzf wrapper (unused)
 └── display.py   # rich tables
 ```
 
