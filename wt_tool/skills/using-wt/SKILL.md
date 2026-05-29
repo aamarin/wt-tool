@@ -52,7 +52,7 @@ Two layers: agent control plane and human UI. Never mix them.
 
 ### Agent control plane (no tmux side effects, safe to script)
 
-All commands accept `--non-interactive` to suppress prompts, fzf, and tmux attach.
+All commands accept `--non-interactive` to suppress prompts and tmux attach.
 
 ```bash
 wt ls                                      # list all worktrees: branch name + path
@@ -72,14 +72,14 @@ cd "$path"
 
 `wt status` columns: `branch | dirty(⚠/✅) | sync(↑N/↓N/⇅/-) | lifecycle(stale/-) | runtime(🟢/⚪)`
 
-### Human UI (tmux attach/switch, fzf — do not call from agents)
+### Human UI (tmux attach/switch — do not call from agents)
 
 ```bash
-wt open                      # fzf picker, attaches tmux session
+wt open                      # Rich table picker, attaches tmux session
 wt open <branch>             # direct switch to branch, attaches tmux session
-wt global                    # fzf across all repos under WT_PROJECTS_DIR
+wt global                    # Rich table across all repos under WT_PROJECTS_DIR
 wt global <repo>/<branch>    # direct cross-repo switch
-wt new [branch]              # omitting base opens fzf
+wt new [branch]              # omitting base shows Rich table to pick base branch
 wt rm <branch>               # requires y/N confirm
 ```
 
@@ -166,7 +166,7 @@ Check for stale environments, diverged branches, or missing tmux sessions before
 
 **Don't:**
 - Call `wt open` or `wt global` from agent code — they attach tmux sessions and are human UI
-- Run `wt new <branch>` without a base — fzf will block
+- Run `wt new <branch>` without a base — the interactive picker will block
 - Run `wt rm <branch>` from inside that worktree — the self-deletion guard will block it
 - Use raw `git worktree add` — it bypasses the tmux session setup
 - Look for a wt state file or registry — there is none; git + filesystem + tmux are authoritative
@@ -179,7 +179,7 @@ When `using-git-worktrees` reaches Step 1a ("is there a native worktree tool?"),
 ## Red Flags
 
 - Calling `wt open` or `wt global` from agent code — these attach tmux (human UI layer)
-- Calling `wt new <branch>` without a base — fzf will block; always supply both args
+- Calling `wt new <branch>` without a base — the interactive picker will block; always supply both args
 - Calling `wt rm` without `--non-interactive` from agent code — requires interactive confirmation
 - Using `wt open <branch> --non-interactive` on a branch with no existing worktree — it errors; use `wt new <branch> <base> --non-interactive` to create first
 - Using `git worktree add` directly — tmux session won't be created

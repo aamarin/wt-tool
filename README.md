@@ -31,13 +31,12 @@ agent in a dedicated window.
 | Python | ≥ 3.11 | runtime |
 | git | ≥ 2.15 | worktree support |
 | tmux | ≥ 3.2 | session management |
-| fzf | any | base-branch selection in `wt new` |
 | uv | any | installation |
 
 Install dependencies on macOS:
 
 ```bash
-brew install git tmux fzf uv
+brew install git tmux uv
 ```
 
 ---
@@ -137,7 +136,7 @@ existing session — running processes are untouched.
 Create a new worktree and tmux session.
 
 ```bash
-wt new 264-auth-flow          # prompts for base branch via fzf
+wt new 264-auth-flow          # shows Rich table to pick base branch
 wt new 264-auth-flow main     # base branch specified
 ```
 
@@ -279,11 +278,11 @@ wt_tool/
 ├── config.py    # env var resolution
 ├── git.py       # porcelain parser + subprocess wrappers
 ├── tmux.py      # session lifecycle; attach via os.execvp
-├── fzf.py       # base-branch picker (used only by wt new)
+├── fzf.py       # legacy fzf wrapper (unused)
 └── display.py   # rich tables
 ```
 
-Python handles orchestration and parsing. `git`, `tmux`, and `fzf` are invoked
+Python handles orchestration and parsing. `git` and `tmux` are invoked
 as subprocesses — not reimplemented.
 
 ---
@@ -295,7 +294,7 @@ uv run pytest tests/ -v
 ```
 
 Pure functions (porcelain parser, ahead/behind regex, config defaults) are tested
-without mocking. Subprocess boundaries (tmux, fzf, git) are tested with
+without mocking. Subprocess boundaries (tmux, git) are tested with
 `pytest-mock`.
 
 ---
