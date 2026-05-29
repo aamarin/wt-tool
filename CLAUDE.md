@@ -43,6 +43,16 @@ repo-root/
 
 `wt global` scans `WT_PROJECTS_DIR` for `*/wt/` directories and namespaces tmux sessions as `{repo}__{branch}` to avoid cross-repo collisions.
 
+### Picker UI
+
+`wt open` and `wt global` use a Rich table + numbered prompt (not fzf). The table shows `# | Branch | State | Sync | Age | Path` with live status. Missing/stale worktree paths render as `✗ missing` and cannot be selected — the user is told to run `wt prune`.
+
+`wt new` is the only command that uses fzf — for interactive base-branch selection when the base is not supplied as an argument.
+
+### Agent skill
+
+The `using-wt` skill in `wt_tool/skills/using-wt/` is bundled in the package and installed via `wt install agent-skill`. The install destination is saved to `agent_skills_dir` in the config file so upgrades reuse it.
+
 ## Testing approach
 
 Pure functions (`parse_worktrees`, `parse_ahead_behind`, config defaults) are tested without mocking. Subprocess boundaries (`tmux`, `fzf`, `git`) are tested with `pytest-mock`. The test suite does not hit a real filesystem or real git repo for unit tests.

@@ -1,6 +1,7 @@
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
-from wt_tool.git import parse_worktrees, parse_ahead_behind
+from wt_tool.git import parse_worktrees, parse_ahead_behind, get_status_porcelain_silent
 
 PORCELAIN_NORMAL = """\
 worktree /Users/andremarin/Development/pfms
@@ -91,3 +92,34 @@ class TestParseAheadBehind:
 
     def test_no_tracking_branch(self):
         assert parse_ahead_behind("## main") == (0, 0)
+
+
+class TestGetStatusPorcelainSilent:
+    def test_returns_output_on_success(self):
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = " M file.py\n"
+        with patch("subprocess.run", return_value=mock_result):
+            result = get_status_porcelain_silent(Path("/some/path"))
+        assert result == "M file.py"
+
+    def test_returns_empty_on_nonzero_exit(self):
+        mock_result = MagicMock()
+        mock_result.returncode = 128
+        mock_result.stdout = ""
+        with patch("subprocess.run", return_value=mock_result):
+            result = get_status_porcelain_silent(Path("/missing/path"))
+        assert result == ""
+
+    def test_returns_empty_on_exception(self):
+        with patch("subprocess.run", side_effect=FileNotFoundError):
+            result = get_status_porcelain_silent(Path("/bad/path"))
+        assert result == ""
+
+    def test_returns_empty_string_for_clean_repo(self):
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = ""
+        with patch("subprocess.run", return_value=mock_result):
+            result = get_status_porcelain_silent(Path("/clean/repo"))
+        assert result == ""

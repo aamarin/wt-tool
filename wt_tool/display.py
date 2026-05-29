@@ -22,6 +22,17 @@ class StatusRow:
     session_active: bool
 
 
+@dataclass
+class OpenRow:
+    label: str
+    path: str
+    is_dirty: bool
+    ahead: int
+    behind: int
+    last_commit_ts: int
+    is_missing: bool = False
+
+
 def print_error(msg: str) -> None:
     err_console.print(f"[red]✗[/red] {msg}")
 
@@ -34,21 +45,31 @@ def print_info(msg: str) -> None:
     console.print(f"[cyan]→[/cyan] {msg}")
 
 
-def print_open_table(worktrees: list[WorktreeInfo]) -> list[str]:
-    """Print numbered worktree table for interactive selection. Returns branches in display order."""
+def print_open_table(rows: list[OpenRow]) -> None:
+    """Print numbered worktree table for interactive selection."""
     table = Table(show_header=True, header_style="bold")
     table.add_column("#", style="dim", justify="right")
     table.add_column("Branch")
+    table.add_column("State", justify="center")
+    table.add_column("Sync", justify="center")
+    table.add_column("Age", justify="right")
     table.add_column("Path", style="dim")
 
-    branches = []
-    for i, wt in enumerate(worktrees, 1):
-        branch = wt.branch or "detached"
-        branches.append(branch)
-        table.add_row(str(i), branch, str(wt.path))
+    now = int(time.time())
+    stale_threshold = 3 * 24 * 3600
+
+    for i, row in enumerate(rows, 1):
+        if row.is_missing:
+            state: str = "[red]✗ missing[/red]"
+            sync: str = "[dim]-[/dim]"
+            age: str = "[dim]-[/dim]"
+        else:
+            state = "⚠" if row.is_dirty else "✓"
+            sync = _format_sync(row.ahead, row.behind)
+            age = _format_age(row.last_commit_ts, now, stale_threshold)
+        table.add_row(str(i), row.label, state, sync, age, row.path)
 
     console.print(table)
-    return branches
 
 
 def print_worktree_table(worktrees: list[WorktreeInfo], wt_dir_name: str = "wt") -> None:
@@ -87,31 +108,35 @@ def print_status_table(rows: list[StatusRow]) -> None:
     table.add_column("Session", justify="center")
 
     now = int(time.time())
-    stale_threshold = 3 * 24 * 3600  # 3 days
+    stale_threshold = 3 * 24 * 3600
 
     for row in rows:
         state = "⚠" if row.is_dirty else "✅"
-
-        if row.ahead and row.behind:
-            sync = f"[yellow]⇅ {row.ahead}↑{row.behind}↓[/yellow]"
-        elif row.ahead:
-            sync = f"[green]↑{row.ahead}[/green]"
-        elif row.behind:
-            sync = f"[red]↓{row.behind}[/red]"
-        else:
-            sync = "[dim]-[/dim]"
-
-        age_secs = max(0, now - row.last_commit_ts) if row.last_commit_ts else 0
-        if age_secs > stale_threshold:
-            age_str = f"[yellow]{_human_age(age_secs)}[/yellow]"
-        else:
-            age_str = _human_age(age_secs) if row.last_commit_ts else "[dim]-[/dim]"
-
+        sync = _format_sync(row.ahead, row.behind)
+        age = _format_age(row.last_commit_ts, now, stale_threshold)
         session = "🟢" if row.session_active else "⚪"
-
-        table.add_row(row.branch, state, sync, age_str, session)
+        table.add_row(row.branch, state, sync, age, session)
 
     console.print(table)
+
+
+def _format_sync(ahead: int, behind: int) -> str:
+    if ahead and behind:
+        return f"[yellow]⇅ {ahead}↑{behind}↓[/yellow]"
+    if ahead:
+        return f"[green]↑{ahead}[/green]"
+    if behind:
+        return f"[red]↓{behind}[/red]"
+    return "[dim]-[/dim]"
+
+
+def _format_age(ts: int, now: int, stale_threshold: int) -> str:
+    if not ts:
+        return "[dim]-[/dim]"
+    age_secs = max(0, now - ts)
+    if age_secs > stale_threshold:
+        return f"[yellow]{_human_age(age_secs)}[/yellow]"
+    return _human_age(age_secs)
 
 
 def _human_age(seconds: int) -> str:

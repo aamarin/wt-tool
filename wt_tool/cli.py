@@ -6,15 +6,15 @@ from typing import Annotated, Optional
 
 import typer
 
-from wt_tool import git, tmux, fzf, display
+from wt_tool import git, tmux, display
 from wt_tool.git import WorktreeInfo
+from wt_tool.display import StatusRow
 from wt_tool.config import (
     load_config,
     resolve_projects_dir, save_projects_dir,
     resolve_agent_skills_dir, save_agent_skills_dir,
     resolve_agent_cmd, save_agent_cmd,
 )
-from wt_tool.display import StatusRow
 
 app = typer.Typer(
     name="wt",
@@ -22,6 +22,7 @@ app = typer.Typer(
     no_args_is_help=False,
     invoke_without_command=True,
 )
+
 
 
 @app.callback()
@@ -155,23 +156,59 @@ def open_cmd(
         if non_interactive:
             display.print_error("--non-interactive requires a branch argument")
             raise typer.Exit(1)
-        display.print_open_table(managed)
+
+        open_rows: list[display.OpenRow] = []
+        has_missing = False
+        for wt in managed:
+            if not wt.path.exists():
+                has_missing = True
+                open_rows.append(display.OpenRow(
+                    label=wt.branch or "detached",
+                    path=str(wt.path),
+                    is_dirty=False, ahead=0, behind=0, last_commit_ts=0,
+                    is_missing=True,
+                ))
+            else:
+                dirty = bool(git.get_status_porcelain_silent(wt.path))
+                sb_line = git.get_status_sb(wt.path)
+                ahead, behind = git.parse_ahead_behind(sb_line)
+                ts = git.get_last_commit_timestamp(wt.path)
+                open_rows.append(display.OpenRow(
+                    label=wt.branch or "detached",
+                    path=str(wt.path),
+                    is_dirty=dirty, ahead=ahead, behind=behind,
+                    last_commit_ts=ts,
+                ))
+
+        display.print_open_table(open_rows)
+        if has_missing:
+            display.print_info("Some worktrees are missing on disk. Run `wt prune` to clean up.")
+
         selected: WorktreeInfo | None = None
         while selected is None:
             try:
-                raw = typer.prompt("\nOpen [branch name or #]").strip()
+                raw = typer.prompt("\nOpen [branch name or # or q to quit]").strip()
             except (KeyboardInterrupt, typer.Abort):
+                raise typer.Exit(0)
+            if raw == "q":
                 raise typer.Exit(0)
             if raw.isdigit():
                 idx = int(raw)
                 if 1 <= idx <= len(managed):
-                    selected = managed[idx - 1]
+                    if open_rows[idx - 1].is_missing:
+                        display.print_error(f"'{managed[idx - 1].branch}' is missing on disk — run `wt prune` to clean up.")
+                    else:
+                        selected = managed[idx - 1]
                 else:
                     display.print_error(f"Enter a number between 1 and {len(managed)}")
             else:
                 match = next((wt for wt in managed if wt.branch == raw), None)
                 if match:
-                    selected = match
+                    match_idx = managed.index(match)
+                    if open_rows[match_idx].is_missing:
+                        display.print_error(f"'{raw}' is missing on disk — run `wt prune` to clean up.")
+                    else:
+                        selected = match
                 else:
                     display.print_error(f"Unknown branch '{raw}'")
         branch = selected.branch
@@ -284,7 +321,7 @@ def rm(
 @app.command(name="global")
 def global_cmd(
     target: Annotated[Optional[str], typer.Argument(help="repo/branch to open directly", autocompletion=_complete_global_targets)] = None,
-    non_interactive: Annotated[bool, typer.Option("--non-interactive", help="Error if no target; no fzf, no tmux attach")] = False,
+    non_interactive: Annotated[bool, typer.Option("--non-interactive", help="Error if no target; no table, no tmux attach")] = False,
 ) -> None:
     """Select a worktree across all repos under WT_PROJECTS_DIR."""
     cfg = load_config()
@@ -312,45 +349,97 @@ def global_cmd(
         display.print_error(f"No worktree dirs found under {projects_dir}")
         raise typer.Exit(1)
 
-    choices: list[str] = []
+    labels: list[str] = []
+    wt_paths: list[Path] = []
+    repo_names: list[str] = []
+    branches: list[str] = []
+    open_rows: list[display.OpenRow] = []
+
     for wt_dir in sorted(wt_dirs):
         repo_root = wt_dir.parent
         repo_name = git.get_repo_name(repo_root)
         for wt in git.list_worktrees_silent(repo_root):
             if cfg.wt_dir_name not in wt.path.parts or not wt.branch:
                 continue
-            choices.append(f"{repo_name}/{wt.branch}\t{wt.path}\t{repo_name}")
+            label = f"{repo_name}/{wt.branch}"
+            labels.append(label)
+            wt_paths.append(wt.path)
+            repo_names.append(repo_name)
+            branches.append(wt.branch)
 
-    if not choices:
+            if not wt.path.exists():
+                open_rows.append(display.OpenRow(
+                    label=label, path=str(wt.path),
+                    is_dirty=False, ahead=0, behind=0, last_commit_ts=0,
+                    is_missing=True,
+                ))
+            else:
+                dirty = bool(git.get_status_porcelain_silent(wt.path))
+                sb_line = git.get_status_sb(wt.path)
+                ahead, behind = git.parse_ahead_behind(sb_line)
+                ts = git.get_last_commit_timestamp(wt.path)
+                open_rows.append(display.OpenRow(
+                    label=label, path=str(wt.path),
+                    is_dirty=dirty, ahead=ahead, behind=behind,
+                    last_commit_ts=ts,
+                ))
+
+    if not open_rows:
         display.print_error("No managed worktrees found across projects")
         raise typer.Exit(1)
 
     if target is not None:
-        match = next((c for c in choices if c.split("\t", maxsplit=1)[0] == target), None)
-        if not match:
+        try:
+            idx = labels.index(target)
+        except ValueError:
             display.print_error(f"No worktree found for '{target}'")
             raise typer.Exit(1)
-        selected = match
+        if open_rows[idx].is_missing:
+            display.print_error(f"'{target}' is missing on disk — run `wt prune` to clean up.")
+            raise typer.Exit(1)
+        wt_path = wt_paths[idx]
+        repo_name = repo_names[idx]
+        branch = branches[idx]
     else:
         if non_interactive:
             display.print_error("--non-interactive requires a repo/branch argument")
             raise typer.Exit(1)
-        try:
-            selected = fzf.run_fzf(
-                choices,
-                prompt="global > ",
-                preview_cmd=_OPEN_PREVIEW,
-                delimiter="\t",
-                with_nth="1",
-            )
-        except fzf.FzfAborted:
-            raise typer.Exit(0)
 
-    parts = selected.split("\t", maxsplit=2)
-    wt_path = Path(parts[1])
-    repo_name = parts[2]
-    label = parts[0]
-    branch = label.split("/", 1)[1] if "/" in label else label
+        has_missing = any(r.is_missing for r in open_rows)
+        display.print_open_table(open_rows)
+        if has_missing:
+            display.print_info("Some worktrees are missing on disk. Run `wt prune` to clean up.")
+
+        selected_idx: int | None = None
+        while selected_idx is None:
+            try:
+                raw = typer.prompt("\nOpen [repo/branch or # or q to quit]").strip()
+            except (KeyboardInterrupt, typer.Abort):
+                raise typer.Exit(0)
+            if raw == "q":
+                raise typer.Exit(0)
+            if raw.isdigit():
+                i = int(raw)
+                if 1 <= i <= len(labels):
+                    if open_rows[i - 1].is_missing:
+                        display.print_error(f"'{labels[i - 1]}' is missing on disk — run `wt prune` to clean up.")
+                    else:
+                        selected_idx = i - 1
+                else:
+                    display.print_error(f"Enter a number between 1 and {len(labels)}")
+            else:
+                try:
+                    candidate = labels.index(raw)
+                    if open_rows[candidate].is_missing:
+                        display.print_error(f"'{raw}' is missing on disk — run `wt prune` to clean up.")
+                    else:
+                        selected_idx = candidate
+                except ValueError:
+                    display.print_error(f"Unknown entry '{raw}'")
+
+        wt_path = wt_paths[selected_idx]
+        repo_name = repo_names[selected_idx]
+        branch = branches[selected_idx]
 
     session = tmux.make_session_name(repo_name, branch)
     tmux.ensure_session(session, wt_path, cfg.agent_cmd)

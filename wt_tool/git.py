@@ -212,6 +212,18 @@ def get_status_porcelain(wt_path: Path) -> str:
     return _run(["git", "-C", str(wt_path), "status", "--porcelain"])
 
 
+def get_status_porcelain_silent(wt_path: Path) -> str:
+    """Non-exiting version — returns '' on any failure (missing path, not a repo, etc.)."""
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(wt_path), "status", "--porcelain"],
+            capture_output=True, text=True,
+        )
+        return result.stdout.strip() if result.returncode == 0 else ""
+    except Exception:
+        return ""
+
+
 _AHEAD_BEHIND_RE = re.compile(r"\[(?:ahead (\d+))?(?:, )?(?:behind (\d+))?\]")
 
 
