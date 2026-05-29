@@ -187,8 +187,10 @@ def open_cmd(
         selected: WorktreeInfo | None = None
         while selected is None:
             try:
-                raw = typer.prompt("\nOpen [branch name or #]").strip()
+                raw = typer.prompt("\nOpen [branch name or # or q to quit]").strip()
             except (KeyboardInterrupt, typer.Abort):
+                raise typer.Exit(0)
+            if raw == "q":
                 raise typer.Exit(0)
             if raw.isdigit():
                 idx = int(raw)
@@ -411,8 +413,10 @@ def global_cmd(
         selected_idx: int | None = None
         while selected_idx is None:
             try:
-                raw = typer.prompt("\nOpen [repo/branch or #]").strip()
+                raw = typer.prompt("\nOpen [repo/branch or # or q to quit]").strip()
             except (KeyboardInterrupt, typer.Abort):
+                raise typer.Exit(0)
+            if raw == "q":
                 raise typer.Exit(0)
             if raw.isdigit():
                 i = int(raw)
