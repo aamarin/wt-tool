@@ -235,7 +235,7 @@ def open_cmd(
 def new(
     branch: Annotated[Optional[str], typer.Argument(help="New branch name")] = None,
     base: Annotated[Optional[str], typer.Argument(help="Base branch", autocompletion=_complete_base_branches)] = None,
-    non_interactive: Annotated[bool, typer.Option("--non-interactive", help="Error if args missing; no fzf, no tmux attach")] = False,
+    non_interactive: Annotated[bool, typer.Option("--non-interactive", help="Error if args missing; no tmux attach")] = False,
 ) -> None:
     """Create a new worktree and tmux session."""
     cfg = load_config()
@@ -256,10 +256,25 @@ def new(
         if not branches:
             display.print_error("No branches found to base from")
             raise typer.Exit(1)
-        try:
-            base = fzf.run_fzf(branches, prompt="base branch > ")
-        except fzf.FzfAborted:
-            raise typer.Exit(0)
+
+        display.print_branch_table(branches)
+        while base is None:
+            try:
+                raw = typer.prompt("\nBase branch [name or # or q to quit]").strip()
+            except (KeyboardInterrupt, typer.Abort):
+                raise typer.Exit(0)
+            if raw == "q":
+                raise typer.Exit(0)
+            if raw.isdigit():
+                idx = int(raw)
+                if 1 <= idx <= len(branches):
+                    base = branches[idx - 1]
+                else:
+                    display.print_error(f"Enter a number between 1 and {len(branches)}")
+            elif raw in branches:
+                base = raw
+            else:
+                display.print_error(f"Unknown branch '{raw}'")
 
     wt_path = root / cfg.wt_dir_name / branch
 

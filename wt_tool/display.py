@@ -72,6 +72,18 @@ def print_open_table(rows: list[OpenRow]) -> None:
     console.print(table)
 
 
+def print_branch_table(branches: list[str]) -> None:
+    """Print numbered branch table for interactive base-branch selection."""
+    table = Table(show_header=True, header_style="bold")
+    table.add_column("#", style="dim", justify="right")
+    table.add_column("Branch")
+
+    for i, branch in enumerate(branches, 1):
+        table.add_row(str(i), branch)
+
+    console.print(table)
+
+
 def print_worktree_table(worktrees: list[WorktreeInfo], wt_dir_name: str = "wt") -> None:
     table = Table(show_header=True, header_style="bold")
     table.add_column("Branch")

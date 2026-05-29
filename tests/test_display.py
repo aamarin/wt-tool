@@ -1,7 +1,7 @@
 import time
 from pathlib import Path
 
-from wt_tool.display import OpenRow, print_open_table, _format_sync, _format_age
+from wt_tool.display import OpenRow, print_open_table, print_branch_table, _format_sync, _format_age
 
 
 def _row(label: str, **kwargs) -> OpenRow:
@@ -15,6 +15,17 @@ def _row(label: str, **kwargs) -> OpenRow:
     )
     defaults.update(kwargs)
     return OpenRow(label=label, **defaults)
+
+
+class TestPrintBranchTable:
+    def test_renders_without_error(self):
+        print_branch_table(["main", "develop", "feat/x"])
+
+    def test_single_branch(self):
+        print_branch_table(["main"])
+
+    def test_empty_list(self):
+        print_branch_table([])
 
 
 class TestPrintOpenTable:
