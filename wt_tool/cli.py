@@ -31,17 +31,6 @@ def default(ctx: typer.Context) -> None:
     if ctx.invoked_subcommand is None:
         open_cmd()
 
-_OPEN_PREVIEW = (
-    'echo "== PATH =="; echo "{2}"; echo; '
-    'echo "== STATUS =="; git -C "{2}" status -sb; echo; '
-    'st=$(git -C "{2}" status --porcelain); '
-    'if [ -n "$st" ]; then '
-    '  echo "== DIFF =="; git -C "{2}" diff --color | head -200; '
-    'else '
-    '  echo "== LAST COMMITS =="; git -C "{2}" log --oneline -5; '
-    'fi'
-)
-
 
 def _complete_managed_branches() -> list[str]:
     cfg = load_config()
