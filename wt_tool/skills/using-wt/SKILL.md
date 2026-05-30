@@ -28,7 +28,7 @@ environment = worktree (wt/<branch>/) + tmux session (<repo>__<branch>)
 
 Each environment has:
 - **Filesystem isolation**: a git linked worktree at `wt/<branch>/` relative to repo root
-- **Runtime isolation**: a tmux session named `<branch>` with three windows:
+- **Runtime isolation**: a tmux session named `<repo>__<branch>` with three windows:
   - `term` — general terminal work
   - `deploy` — servers, watchers, long-running processes
   - `agent` — agent process; `$WT_AGENT_CMD` (default: `claude`) is launched here automatically on session creation
