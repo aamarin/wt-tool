@@ -23,7 +23,7 @@ description: Guides correct use of the wt environment management tool. Use when 
 
 ```
 branch = environment
-environment = worktree (wt/<branch>/) + tmux session (<branch>)
+environment = worktree (wt/<branch>/) + tmux session (<repo>__<branch>)
 ```
 
 Each environment has:
@@ -34,6 +34,8 @@ Each environment has:
   - `agent` — agent process; `$WT_AGENT_CMD` (default: `claude`) is launched here automatically on session creation
 
 Worktrees are in `wt/` (not `.worktrees/`). This is intentional — the directory name matches the tool name.
+
+**Session naming:** tmux sessions are named `<repo>__<branch>` (double underscore) for all commands — local and global. This avoids cross-repo collisions when `wt global` spans multiple projects. Colons in branch names are replaced with dashes (tmux parses `session:window:pane` notation). If you see sessions named only `<branch>` without a repo prefix, those are orphans from a pre-unification migration — they are benign and can be killed manually via `tmux kill-session -t <old-name>`.
 
 All commands resolve the main repo root via `git worktree list` (not `git rev-parse --show-toplevel`), so they work correctly whether called from the main repo or from inside a linked worktree.
 
