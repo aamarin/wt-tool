@@ -100,6 +100,8 @@ wt config show   # inspect current values (file + env)
 
 Env vars still take precedence over saved config.
 
+**Shell autocomplete:** Tab completion is available for all subcommands, flags, and branch/target arguments. Enable it by adding the appropriate line for your shell to your profile (run `wt --install-completion` to get the snippet).
+
 ## Workflows
 
 ### Start new work
