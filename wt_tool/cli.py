@@ -2,7 +2,7 @@ import importlib.resources
 import os
 import shutil
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated, List, Optional
 
 import typer
 
@@ -233,31 +233,41 @@ def open_cmd(
 
 @app.command()
 def new(
-    branch: Annotated[Optional[str], typer.Argument(help="New branch name")] = None,
-    base: Annotated[Optional[str], typer.Argument(help="Base branch", autocompletion=_complete_base_branches)] = None,
+    branches: Annotated[Optional[List[str]], typer.Argument(help="New branch name(s)", autocompletion=_complete_base_branches)] = None,
+    base: Annotated[Optional[str], typer.Option("--base", "-b", help="Base branch (also accepted as last positional)", autocompletion=_complete_base_branches)] = None,
     non_interactive: Annotated[bool, typer.Option("--non-interactive", help="Error if args missing; no tmux attach")] = False,
 ) -> None:
-    """Create a new worktree and tmux session."""
+    """Create one or more new worktrees and tmux sessions."""
+    from wt_tool.operations import create_worktrees
+
     cfg = load_config()
     root = git.get_main_worktree_root()
 
-    if branch is None:
+    # Resolve branch list
+    if not branches:
         if non_interactive:
             display.print_error("--non-interactive requires branch and base arguments")
             raise typer.Exit(1)
-        branch = typer.prompt("New branch name")
+        branch_list = [typer.prompt("New branch name").strip()]
+    else:
+        branch_list = list(branches)
 
+    # Extract base from last positional when --base not given
+    if base is None and len(branch_list) >= 2:
+        base = branch_list[-1]
+        branch_list = branch_list[:-1]
+
+    # Prompt for base if still unresolved
     if base is None:
         if non_interactive:
             display.print_error("--non-interactive requires branch and base arguments")
             raise typer.Exit(1)
         git.fetch_all(root)
-        branches = git.list_branches(root)
-        if not branches:
+        all_branches = git.list_branches(root)
+        if not all_branches:
             display.print_error("No branches found to base from")
             raise typer.Exit(1)
-
-        display.print_branch_table(branches)
+        display.print_branch_table(all_branches)
         while base is None:
             try:
                 raw = typer.prompt("\nBase branch [name or # or q to quit]").strip()
@@ -267,21 +277,16 @@ def new(
                 raise typer.Exit(0)
             if raw.isdigit():
                 idx = int(raw)
-                if 1 <= idx <= len(branches):
-                    base = branches[idx - 1]
+                if 1 <= idx <= len(all_branches):
+                    base = all_branches[idx - 1]
                 else:
-                    display.print_error(f"Enter a number between 1 and {len(branches)}")
-            elif raw in branches:
+                    display.print_error(f"Enter a number between 1 and {len(all_branches)}")
+            elif raw in all_branches:
                 base = raw
             else:
                 display.print_error(f"Unknown branch '{raw}'")
 
-    wt_path = root / cfg.wt_dir_name / branch
-
-    if wt_path.exists():
-        display.print_error(f"Worktree already exists: {wt_path}")
-        raise typer.Exit(1)
-
+    # Agent cmd — prompt once if not configured
     agent_cmd = cfg.agent_cmd
     if not non_interactive and resolve_agent_cmd() is None:
         display.print_info("No agent command configured.")
@@ -289,18 +294,29 @@ def new(
         agent_cmd = raw.strip()
         save_agent_cmd(agent_cmd)
 
-    display.print_info(f"Creating worktree '{branch}' from '{base}'...")
-    git.add_worktree(root, branch, wt_path, base)
-
     repo_name = git.get_repo_name(root)
-    session = tmux.make_session_name(repo_name, branch)
-    tmux.ensure_session(session, wt_path, agent_cmd)
-    display.print_success(f"Created: {wt_path}")
+    successes, failures = create_worktrees(
+        branch_list, base, root, cfg.wt_dir_name, repo_name, agent_cmd,
+        add_worktree_fn=git.add_worktree,
+        ensure_session_fn=tmux.ensure_session,
+        make_session_name_fn=tmux.make_session_name,
+    )
 
-    if not non_interactive:
+    # Attach (single branch, interactive) or print paths
+    if not non_interactive and len(branch_list) == 1 and successes:
+        session = tmux.make_session_name(repo_name, successes[0])
         tmux.attach(session)
     else:
-        print(str(wt_path))
+        for branch in successes:
+            print(str(root / cfg.wt_dir_name / branch))
+
+    if len(branch_list) > 1:
+        if failures:
+            display.print_error(f"Failed: {', '.join(failures)}")
+        display.print_success(f"Created {len(successes)}/{len(branch_list)} worktrees")
+
+    if failures:
+        raise typer.Exit(1)
 
 
 @app.command()
