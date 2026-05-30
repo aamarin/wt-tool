@@ -77,6 +77,7 @@ cd "$path"
 ### Human UI (tmux attach/switch — do not call from agents)
 
 ```bash
+wt                           # same as wt open (default when no args given)
 wt open                      # Rich table picker, attaches tmux session
 wt open <branch>             # direct switch to branch, attaches tmux session
 wt global                    # Rich table across all repos under WT_PROJECTS_DIR
