@@ -198,3 +198,4 @@ When `using-git-worktrees` reaches Step 1a ("is there a native worktree tool?"),
 - Assuming a tmux session exists without checking `wt status` runtime column (🟢/⚪)
 - Reusing one branch for unrelated tasks — breaks isolation, the core invariant
 - Using `wt global <repo>/<branch>` with a branch that lives only in the main worktree, not under `wt/` — global only shows managed worktrees, not the main checkout
+- Assuming a tmux session is named `<branch>` — sessions use `<repo>__<branch>` since the naming unification; old-format sessions are orphans, not the active ones
