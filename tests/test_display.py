@@ -1,7 +1,12 @@
 import time
-from pathlib import Path
 
-from wt_tool.display import OpenRow, print_open_table, print_branch_table, _format_sync, _format_age
+from wt_tool.display import (
+    OpenRow,
+    _format_age,
+    _format_sync,
+    print_branch_table,
+    print_open_table,
+)
 
 
 def _row(label: str, **kwargs) -> OpenRow:
@@ -44,7 +49,12 @@ class TestPrintOpenTable:
 
     def test_mixed_status(self):
         rows = [
-            _row("feat/a", is_dirty=True, ahead=2, last_commit_ts=int(time.time()) - 3600),
+            _row(
+                "feat/a",
+                is_dirty=True,
+                ahead=2,
+                last_commit_ts=int(time.time()) - 3600,
+            ),
             _row("fix/b", behind=1, last_commit_ts=int(time.time()) - 86400),
             _row("stale", is_missing=True),
         ]

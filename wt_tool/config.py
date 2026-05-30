@@ -19,7 +19,10 @@ def _read_config_file() -> dict:
         try:
             return json.loads(CONFIG_FILE.read_text())
         except json.JSONDecodeError:
-            print(f"wt: warning: {CONFIG_FILE} contains invalid JSON, ignoring", file=sys.stderr)
+            print(
+                f"wt: warning: {CONFIG_FILE} contains invalid JSON, ignoring",
+                file=sys.stderr,
+            )
     return {}
 
 
@@ -94,6 +97,11 @@ def load_config() -> Config:
     data = _read_config_file()
     return Config(
         wt_dir_name=os.environ.get("WT_DIR_NAME", data.get("wt_dir_name", "wt")),
-        projects_dir=Path(os.environ.get("WT_PROJECTS_DIR", data.get("projects_dir", str(Path.home() / "Development")))).expanduser(),
+        projects_dir=Path(
+            os.environ.get(
+                "WT_PROJECTS_DIR",
+                data.get("projects_dir", str(Path.home() / "Development")),
+            )
+        ).expanduser(),
         agent_cmd=os.environ.get("WT_AGENT_CMD", data.get("agent_cmd", "claude")),
     )
