@@ -74,6 +74,20 @@ class TestFormatSync:
         assert _format_sync(0, 0) == "[dim]-[/dim]"
 
 
+class TestPrintRmSummary:
+    def test_renders_without_exception(self):
+        from wt_tool.display import print_rm_summary, RmSummaryRow
+        rows = [
+            RmSummaryRow(branch="feat-a", path="/repo/wt/feat-a", is_dirty=False, session_active=False),
+            RmSummaryRow(branch="feat-b", path="/repo/wt/feat-b", is_dirty=True, session_active=True),
+        ]
+        print_rm_summary(rows)
+
+    def test_empty_rows(self):
+        from wt_tool.display import print_rm_summary, RmSummaryRow
+        print_rm_summary([])
+
+
 class TestFormatAge:
     def test_no_timestamp(self):
         assert _format_age(0, 1000, 259200) == "[dim]-[/dim]"
