@@ -28,7 +28,6 @@ uv run pytest tests/test_tmux.py::TestMakeSessionName::test_sanitizes_colons -v
 - `config.py` — Config resolution: env vars take precedence over `~/.config/wt/config.json`. `load_config()` always returns a fully-resolved `Config` dataclass; individual `resolve_*()` functions return `None` when a value was never explicitly set (used to detect first-run prompts).
 - `git.py` — Two layers: a pure `parse_worktrees()` function that parses `git worktree list --porcelain` output (no subprocess, fully testable), and subprocess wrappers for git operations. `_run()` calls `typer.Exit(1)` on failure.
 - `tmux.py` — Session lifecycle. Each worktree gets a session with three windows: `term`, `deploy`, `agent`. `attach()` uses `os.execvp` to replace the current process with tmux (switches client if already inside tmux, otherwise attaches).
-- `fzf.py` — Thin wrapper around the `fzf` binary. Raises `FzfAborted` on exit codes 1 or 130 (no selection / Ctrl-C).
 - `display.py` — Rich tables and status messages. Errors go to `err_console` (stderr); success/info go to `console` (stdout).
 
 **Worktree layout convention:**
@@ -45,9 +44,7 @@ repo-root/
 
 ### Picker UI
 
-`wt open` and `wt global` use a Rich table + numbered prompt (not fzf). The table shows `# | Branch | State | Sync | Age | Path` with live status. Missing/stale worktree paths render as `✗ missing` and cannot be selected — the user is told to run `wt prune`.
-
-`wt new` is the only command that uses fzf — for interactive base-branch selection when the base is not supplied as an argument.
+All three interactive commands (`open`, `global`, `new`) use a Rich table + numbered prompt. The table shows `# | Branch | State | Sync | Age | Path` with live status. Missing/stale worktree paths render as `✗ missing` and cannot be selected — the user is told to run `wt prune`.
 
 ### Agent skill
 
@@ -55,7 +52,7 @@ The `using-wt` skill in `wt_tool/skills/using-wt/` is bundled in the package and
 
 ## Testing approach
 
-Pure functions (`parse_worktrees`, `parse_ahead_behind`, config defaults) are tested without mocking. Subprocess boundaries (`tmux`, `fzf`, `git`) are tested with `pytest-mock`. The test suite does not hit a real filesystem or real git repo for unit tests.
+Pure functions (`parse_worktrees`, `parse_ahead_behind`, config defaults) are tested without mocking. Subprocess boundaries (`tmux`, `git`) are tested with `pytest-mock`. The test suite does not hit a real filesystem or real git repo for unit tests.
 
 ## Config file
 
