@@ -289,7 +289,9 @@ def new(
             display.print_error("No branches found to base from")
             raise typer.Exit(1)
 
-        display.print_info(f"No base branch specified for '{branch}' — pick one to branch from:")
+        display.print_info(
+            f"No base branch specified for '{branch}' — pick one to branch from:"
+        )
         display.print_branch_table(branches)
         while base is None:
             try:
@@ -312,7 +314,7 @@ def new(
     if not non_interactive and resolve_wt_dir_name() is None:
         display.print_info("No worktree directory name configured.")
         raw = typer.prompt(
-            "Worktree subdirectory name (default: wt — all worktrees live under this folder in each repo)",
+            "Worktree subdirectory name (default: wt — all worktrees live under this folder in each repo)",  # noqa: E501
             default="wt",
         )
         save_wt_dir_name(raw.strip() or "wt")
@@ -377,7 +379,10 @@ def rm(
         raise typer.Exit(1)
 
     if not has_wt and not session_exists:
-        display.print_error(f"Nothing found for '{branch}' — no worktree at {wt_path} and no session '{session}'")
+        display.print_error(
+            f"Nothing found for '{branch}' —"
+            f" no worktree at {wt_path} and no session '{session}'"
+        )
         raise typer.Exit(1)
 
     if not non_interactive:

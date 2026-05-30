@@ -78,7 +78,7 @@ def save_agent_cmd(cmd: str) -> None:
 
 
 def resolve_wt_dir_name() -> str | None:
-    """Returns the configured worktree directory name, or None if never explicitly set."""
+    """Returns the configured wt dir name, or None if never explicitly set."""
     if "WT_DIR_NAME" in os.environ:
         return os.environ["WT_DIR_NAME"]
     data = _read_config_file()
