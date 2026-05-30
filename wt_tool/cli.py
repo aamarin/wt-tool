@@ -14,6 +14,7 @@ from wt_tool.config import (
     resolve_projects_dir, save_projects_dir,
     resolve_agent_skills_dir, save_agent_skills_dir,
     resolve_agent_cmd, save_agent_cmd,
+    resolve_wt_dir_name, save_wt_dir_name,
 )
 
 app = typer.Typer(
@@ -89,7 +90,13 @@ def ls() -> None:
 
 @app.command()
 def prune() -> None:
-    """Prune stale worktree references."""
+    """Prune stale worktree references.
+
+    Runs 'git worktree prune' to remove metadata for worktrees whose
+    directories no longer exist on disk. Only needed if a worktree directory
+    was deleted outside of 'wt rm' (e.g. rm -rf wt/my-branch/). Normal
+    removal via 'wt rm' handles cleanup automatically.
+    """
     root = git.get_main_worktree_root()
     git.prune_worktrees(root)
     display.print_success("Pruned stale worktree references")
@@ -257,6 +264,7 @@ def new(
             display.print_error("No branches found to base from")
             raise typer.Exit(1)
 
+        display.print_info(f"No base branch specified for '{branch}' — pick one to branch from:")
         display.print_branch_table(branches)
         while base is None:
             try:
@@ -275,6 +283,15 @@ def new(
                 base = raw
             else:
                 display.print_error(f"Unknown branch '{raw}'")
+
+    if not non_interactive and resolve_wt_dir_name() is None:
+        display.print_info("No worktree directory name configured.")
+        raw = typer.prompt(
+            "Worktree subdirectory name (default: wt — all worktrees live under this folder in each repo)",
+            default="wt",
+        )
+        save_wt_dir_name(raw.strip() or "wt")
+        cfg = load_config()
 
     wt_path = root / cfg.wt_dir_name / branch
 
@@ -313,24 +330,35 @@ def rm(
     root = git.get_main_worktree_root()
     wt_path = root / cfg.wt_dir_name / branch
 
+    repo_name = git.get_repo_name(root)
+    session = tmux.make_session_name(repo_name, branch)
+    has_wt = wt_path.exists()
+    session_exists = tmux.has_session(session)
+
     cwd = Path(os.getcwd()).resolve()
     if cwd == wt_path.resolve() or wt_path.resolve() in cwd.parents:
         display.print_error("Cannot remove worktree you are currently inside")
         raise typer.Exit(1)
 
-    if not wt_path.exists():
-        display.print_error(f"No worktree found at {wt_path}")
+    if not has_wt and not session_exists:
+        display.print_error(f"Nothing found for '{branch}' — no worktree at {wt_path} and no session '{session}'")
         raise typer.Exit(1)
 
     if not non_interactive:
         typer.confirm(f"Remove worktree + branch '{branch}'?", abort=True)
 
-    git.remove_worktree(root, wt_path)
-    git.delete_branch(root, branch)
-    repo_name = git.get_repo_name(root)
-    session = tmux.make_session_name(repo_name, branch)
-    tmux.kill_session(session)
-    display.print_success(f"Removed '{branch}'")
+    if has_wt:
+        git.remove_worktree(root, wt_path)
+        git.delete_branch(root, branch)
+        display.print_success(f"Removed worktree and branch '{branch}'")
+    else:
+        display.print_info(f"No worktree found at {wt_path} — skipping")
+
+    if session_exists:
+        tmux.kill_session(session)
+        display.print_success(f"Killed tmux session '{session}'")
+    else:
+        display.print_info(f"No tmux session '{session}' — skipping")
 
 
 @app.command(name="global")
@@ -468,7 +496,7 @@ def global_cmd(
 config_app = typer.Typer(name="config", help="Get and set wt configuration.", no_args_is_help=True)
 app.add_typer(config_app)
 
-_VALID_KEYS = ("agent-cmd", "projects-dir")
+_VALID_KEYS = ("agent-cmd", "projects-dir", "wt-dir-name")
 
 
 @config_app.command(name="set")
@@ -483,6 +511,9 @@ def config_set(
     elif key == "projects-dir":
         save_projects_dir(Path(value).expanduser().resolve())
         display.print_success(f"projects-dir = {value}")
+    elif key == "wt-dir-name":
+        save_wt_dir_name(value)
+        display.print_success(f"wt-dir-name = {value}")
     else:
         display.print_error(f"Unknown key '{key}'. Valid keys: {', '.join(_VALID_KEYS)}")
         raise typer.Exit(1)
