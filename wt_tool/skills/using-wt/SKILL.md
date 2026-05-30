@@ -152,6 +152,12 @@ always use `wt rm` instead.
 
 `wt rm` blocks with an error if `$PWD` is inside the target worktree.
 
+**Orphaned sessions from naming migration:** If `tmux ls` shows sessions named only `<branch>` (without a repo prefix), these are pre-migration orphans. They are harmless — `wt` will not attach to or manage them — but they consume tmux server resources. Kill them manually:
+
+```bash
+tmux kill-session -t <old-branch-name>
+```
+
 ### Inspect before acting
 
 ```bash
