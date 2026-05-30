@@ -104,7 +104,11 @@ def list_branches_silent(root: Path) -> list[str]:
     """Returns branch list, or [] on any failure (no stderr output)."""
     try:
         result = subprocess.run(
-            ["git", "for-each-ref", "--format=%(refname:short)", "refs/heads/", "refs/remotes/"],
+            [
+                "git", "for-each-ref",
+                "--format=%(refname:short)",
+                "refs/heads/", "refs/remotes/",
+            ],
             cwd=root, capture_output=True, text=True,
         )
         if result.returncode != 0:
@@ -148,7 +152,11 @@ def get_repo_name(root: Path) -> str:
 
 def list_branches(root: Path) -> list[str]:
     out = _run(
-        ["git", "for-each-ref", "--format=%(refname:short)", "refs/heads/", "refs/remotes/"],
+        [
+            "git", "for-each-ref",
+            "--format=%(refname:short)",
+            "refs/heads/", "refs/remotes/",
+        ],
         cwd=root,
     )
     seen: set[str] = set()
@@ -213,7 +221,7 @@ def get_status_porcelain(wt_path: Path) -> str:
 
 
 def get_status_porcelain_silent(wt_path: Path) -> str:
-    """Non-exiting version — returns '' on any failure (missing path, not a repo, etc.)."""
+    """Non-exiting — returns '' on any failure (missing path, not a repo, etc.)."""
     try:
         result = subprocess.run(
             ["git", "-C", str(wt_path), "status", "--porcelain"],
