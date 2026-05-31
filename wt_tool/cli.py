@@ -701,7 +701,7 @@ def install_agent_skill(
     ] = None,
 ) -> None:
     """Install the using-wt agent skill to your skills directory."""
-    _DEFAULT_SKILLS_DIR = Path.home() / ".agents" / "skills"
+    _default_skills_dir = Path.home() / ".agents" / "skills"
 
     if path is not None:
         skills_dir = Path(path).expanduser().resolve()
@@ -711,7 +711,7 @@ def install_agent_skill(
         if skills_dir is None:
             raw = typer.prompt(
                 "Where are your agent skills?",
-                default=str(_DEFAULT_SKILLS_DIR),
+                default=str(_default_skills_dir),
             )
             skills_dir = Path(raw).expanduser().resolve()
             save_agent_skills_dir(skills_dir)
