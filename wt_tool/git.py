@@ -91,7 +91,7 @@ def get_main_worktree_root() -> Path:
 
 
 def get_main_worktree_root_silent() -> Optional[Path]:
-    """Returns the main worktree root, or None on any failure (no stderr output)."""
+    """Return the main worktree root, or None on any failure (no stderr output)."""
     try:
         result = subprocess.run(
             ["git", "worktree", "list", "--porcelain"],
@@ -106,7 +106,7 @@ def get_main_worktree_root_silent() -> Optional[Path]:
 
 
 def list_branches_silent(root: Path) -> list[str]:
-    """Returns branch list, or [] on any failure (no stderr output)."""
+    """Return branch list, or [] on any failure (no stderr output)."""
     try:
         result = subprocess.run(
             [
@@ -139,7 +139,7 @@ def list_worktrees(root: Path) -> list[WorktreeInfo]:
 
 
 def list_worktrees_silent(root: Path) -> list[WorktreeInfo]:
-    """Returns empty list without printing errors if root is not a git repo."""
+    """Return empty list without printing errors if root is not a git repo."""
     try:
         result = subprocess.run(
             ["git", "worktree", "list", "--porcelain"],
