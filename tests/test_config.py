@@ -29,12 +29,11 @@ class TestLoadConfig:
         assert cfg.agent_cmd == "aider"
 
     def test_immutable(self):
+        import pytest
+        from dataclasses import FrozenInstanceError
         cfg = load_config()
-        try:
+        with pytest.raises(FrozenInstanceError):
             cfg.wt_dir_name = "other"  # type: ignore[misc]
-            raise AssertionError("Should have raised")
-        except Exception:
-            pass
 
     def test_file_config_agent_cmd(self, tmp_path):
         config_file = tmp_path / "config.json"
