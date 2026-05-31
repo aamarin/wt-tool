@@ -427,12 +427,18 @@ def rm(
     repo_name = git.get_repo_name(root)
 
     if len(branch_list) > 1:
-        visible = [
+        cwd_blocked = [
             b for b in branch_list
-            if (root / cfg.wt_dir_name / b).exists()
-            and cwd != (root / cfg.wt_dir_name / b).resolve()
-            and (root / cfg.wt_dir_name / b).resolve() not in cwd.parents
+            if cwd == (root / cfg.wt_dir_name / b).resolve()
+            or (root / cfg.wt_dir_name / b).resolve() in cwd.parents
         ]
+        for b in cwd_blocked:
+            display.print_error(
+                f"Skipping '{b}': cannot remove the worktree you are currently inside\n"
+                f"  cd {root} && wt rm {b} --non-interactive"
+            )
+        to_remove = [b for b in branch_list if b not in cwd_blocked]
+        visible = [b for b in to_remove if (root / cfg.wt_dir_name / b).exists()]
         if visible:
             dirty_preview = (
                 [] if force
@@ -454,11 +460,13 @@ def rm(
         if not non_interactive:
             typer.confirm(f"Remove {len(visible)} worktrees?", abort=True)
     else:
+        cwd_blocked = []
+        to_remove = branch_list
         if not non_interactive:
             typer.confirm(f"Remove worktree + branch '{branch_list[0]}'?", abort=True)
 
     successes, failures, skipped = remove_worktrees(
-        branch_list, root, cfg.wt_dir_name, repo_name, cwd, force,
+        to_remove, root, cfg.wt_dir_name, repo_name, cwd, force,
         get_status_fn=git.get_status_porcelain,
         has_session_fn=tmux.has_session,
         remove_worktree_fn=git.remove_worktree,
@@ -468,8 +476,9 @@ def rm(
     )
 
     if len(branch_list) > 1:
-        if failures or skipped:
-            display.print_error(f"Failed/skipped: {', '.join(failures + skipped)}")
+        all_skipped = skipped + cwd_blocked
+        if failures or all_skipped:
+            display.print_error(f"Failed/skipped: {', '.join(failures + all_skipped)}")
         display.print_success(f"Removed {len(successes)}/{len(branch_list)} worktrees")
 
     if not successes or failures:

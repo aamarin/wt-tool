@@ -61,7 +61,8 @@ def remove_worktrees(
         wt_path = (root / wt_dir_name / branch).resolve()
         if cwd == wt_path or wt_path in cwd.parents:
             display.print_error(
-                f"Skipping '{branch}': cannot remove worktree you are currently inside"
+                f"Skipping '{branch}': cannot remove the worktree you are currently inside\n"
+                f"  cd {root} && wt rm {branch} --non-interactive"
             )
             skipped.append(branch)
             continue
