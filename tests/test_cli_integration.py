@@ -95,7 +95,7 @@ class TestRmIntegration:
         )
 
     def test_removes_single_worktree_from_disk(self, mocker, git_repo):
-        root, base = git_repo
+        root, _base = git_repo
         mocker.patch("wt_tool.cli.load_config", return_value=_cfg(root))
         mocker.patch("wt_tool.cli.git.get_main_worktree_root", return_value=root)
         mocker.patch("wt_tool.cli.tmux.kill_session")
@@ -107,7 +107,7 @@ class TestRmIntegration:
         assert not (root / "wt" / "feat-a").exists()
 
     def test_removes_multiple_worktrees_from_disk(self, mocker, git_repo):
-        root, base = git_repo
+        root, _base = git_repo
         mocker.patch("wt_tool.cli.load_config", return_value=_cfg(root))
         mocker.patch("wt_tool.cli.git.get_main_worktree_root", return_value=root)
         mocker.patch("wt_tool.cli.tmux.kill_session")

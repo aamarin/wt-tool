@@ -1,5 +1,6 @@
 """Git worktree parsing and subprocess wrappers for wt."""
 
+import contextlib
 import re
 import subprocess
 from dataclasses import dataclass
@@ -26,7 +27,7 @@ def _run(cmd: list[str], cwd: Path | None = None) -> str:
     except subprocess.CalledProcessError as e:
         from wt_tool.display import print_error
         print_error(e.stderr.strip() or " ".join(cmd))
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 def parse_worktrees(output: str) -> list[WorktreeInfo]:
@@ -79,7 +80,7 @@ def get_main_worktree_root() -> Path:
     except subprocess.CalledProcessError:
         from wt_tool.display import print_error
         print_error("Not inside a git repository")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     worktrees = parse_worktrees(out)
     if not worktrees:
@@ -219,13 +220,11 @@ def prune_worktrees(root: Path) -> None:
 
 def fetch_all(root: Path) -> None:
     """Fetch all remotes with pruning; failure is silently ignored."""
-    try:
+    with contextlib.suppress(subprocess.CalledProcessError):
         subprocess.run(
             ["git", "fetch", "--all", "--prune"],
             cwd=root, check=True, capture_output=True, text=True,
         )
-    except subprocess.CalledProcessError:
-        pass  # fetch failures are non-fatal
 
 
 def get_status_porcelain(wt_path: Path) -> str:

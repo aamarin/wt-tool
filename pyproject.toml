@@ -29,7 +29,10 @@ dev = [
 line-length = 100
 
 [tool.ruff.lint]
-select = ["E", "W", "F", "I", "D", "N", "ANN", "UP"]
+select = ["E", "W", "F", "I", "D", "N", "ANN", "UP", "B", "C90", "SIM", "RUF"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 25
 
 [tool.ruff.lint.pydocstyle]
 convention = "pep257"

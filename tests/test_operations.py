@@ -155,7 +155,7 @@ class TestRemoveWorktrees:
         self._make_wt(tmp_path, "feat-a", "feat-b", "feat-c")
         git = FakeGit(tmp_path)
         tmux = FakeTmux()
-        successes, failures, skipped = remove_worktrees(
+        successes, failures, _skipped = remove_worktrees(
             ["feat-a", "feat-b", "feat-c"], tmp_path, "wt", "repo", tmp_path,
             get_status_fn=git.get_status_porcelain,
             has_session_fn=tmux.has_session,
@@ -171,7 +171,7 @@ class TestRemoveWorktrees:
         from wt_tool.operations import remove_worktrees
         git = FakeGit(tmp_path)
         tmux = FakeTmux()
-        successes, failures, skipped = remove_worktrees(
+        successes, _failures, skipped = remove_worktrees(
             ["ghost"], tmp_path, "wt", "repo", tmp_path,
             get_status_fn=git.get_status_porcelain,
             has_session_fn=tmux.has_session,
@@ -189,7 +189,7 @@ class TestRemoveWorktrees:
         self._make_wt(tmp_path, "feat-a", "feat-b")
         git = FakeGit(tmp_path)
         tmux = FakeTmux()
-        successes, failures, skipped = remove_worktrees(
+        successes, _failures, skipped = remove_worktrees(
             ["feat-a", "feat-b"], tmp_path, "wt", "repo", cwd_wt,
             get_status_fn=git.get_status_porcelain,
             has_session_fn=tmux.has_session,
@@ -207,7 +207,7 @@ class TestRemoveWorktrees:
         self._make_wt(tmp_path, "feat-a", "feat-b")
         git = FakeGit(tmp_path, dirty_branches={"feat-a"})
         tmux = FakeTmux()
-        successes, failures, skipped = remove_worktrees(
+        successes, failures, _skipped = remove_worktrees(
             ["feat-a", "feat-b"], tmp_path, "wt", "repo", tmp_path,
             get_status_fn=git.get_status_porcelain,
             has_session_fn=tmux.has_session,
@@ -225,7 +225,7 @@ class TestRemoveWorktrees:
         self._make_wt(tmp_path, "feat-a")
         git = FakeGit(tmp_path, dirty_branches={"feat-a"})
         tmux = FakeTmux()
-        successes, failures, skipped = remove_worktrees(
+        successes, failures, _skipped = remove_worktrees(
             ["feat-a"], tmp_path, "wt", "repo", tmp_path, force=True,
             get_status_fn=git.get_status_porcelain,
             has_session_fn=tmux.has_session,
@@ -242,7 +242,7 @@ class TestRemoveWorktrees:
         self._make_wt(tmp_path, "feat-a", "feat-b")
         git = FakeGit(tmp_path, fail_on={"feat-a"})
         tmux = FakeTmux()
-        successes, failures, skipped = remove_worktrees(
+        successes, failures, _skipped = remove_worktrees(
             ["feat-a", "feat-b"], tmp_path, "wt", "repo", tmp_path,
             get_status_fn=git.get_status_porcelain,
             has_session_fn=tmux.has_session,

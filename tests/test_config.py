@@ -32,26 +32,30 @@ class TestLoadConfig:
         cfg = load_config()
         try:
             cfg.wt_dir_name = "other"  # type: ignore[misc]
-            assert False, "Should have raised"
+            raise AssertionError("Should have raised")
         except Exception:
             pass
 
     def test_file_config_agent_cmd(self, tmp_path):
         config_file = tmp_path / "config.json"
         config_file.write_text(json.dumps({"agent_cmd": "aider"}))
-        with patch("wt_tool.config.CONFIG_FILE", config_file):
-            with patch.dict(os.environ, {}, clear=False):
-                env = {k: v for k, v in os.environ.items() if k != "WT_AGENT_CMD"}
-                with patch.dict(os.environ, env, clear=True):
-                    cfg = load_config()
+        with (
+            patch("wt_tool.config.CONFIG_FILE", config_file),
+            patch.dict(os.environ, {}, clear=False),
+        ):
+            env = {k: v for k, v in os.environ.items() if k != "WT_AGENT_CMD"}
+            with patch.dict(os.environ, env, clear=True):
+                cfg = load_config()
         assert cfg.agent_cmd == "aider"
 
     def test_env_takes_precedence_over_file(self, tmp_path):
         config_file = tmp_path / "config.json"
         config_file.write_text(json.dumps({"agent_cmd": "aider"}))
-        with patch("wt_tool.config.CONFIG_FILE", config_file):
-            with patch.dict(os.environ, {"WT_AGENT_CMD": "cursor"}):
-                cfg = load_config()
+        with (
+            patch("wt_tool.config.CONFIG_FILE", config_file),
+            patch.dict(os.environ, {"WT_AGENT_CMD": "cursor"}),
+        ):
+            cfg = load_config()
         assert cfg.agent_cmd == "cursor"
 
 

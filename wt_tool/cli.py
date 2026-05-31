@@ -212,7 +212,7 @@ def open_cmd(
             try:
                 raw = typer.prompt("\nOpen [branch name or # or q to quit]").strip()
             except (KeyboardInterrupt, typer.Abort):
-                raise typer.Exit(0)
+                raise typer.Exit(0) from None
             if raw == "q":
                 raise typer.Exit(0)
             if raw.isdigit():
@@ -312,7 +312,7 @@ def new(
             try:
                 raw = typer.prompt("\nBase branch [name or # or q to quit]").strip()
             except (KeyboardInterrupt, typer.Abort):
-                raise typer.Exit(0)
+                raise typer.Exit(0) from None
             if raw == "q":
                 raise typer.Exit(0)
             if raw.isdigit():
@@ -329,7 +329,8 @@ def new(
     if not non_interactive and resolve_wt_dir_name() is None:
         display.print_info("No worktree directory name configured.")
         raw = typer.prompt(
-            "Worktree subdirectory name (default: wt — all worktrees live under this folder in each repo)",  # noqa: E501
+            "Worktree subdirectory name"
+            " (default: wt — all worktrees live under this folder in each repo)",
             default="wt",
         )
         save_wt_dir_name(raw.strip() or "wt")
@@ -414,7 +415,7 @@ def rm(
             try:
                 raw = typer.prompt("\nRemove [branch name or # or q to quit]").strip()
             except (KeyboardInterrupt, typer.Abort):
-                raise typer.Exit(0)
+                raise typer.Exit(0) from None
             if raw == "q":
                 raise typer.Exit(0)
             if raw.isdigit():
@@ -581,7 +582,7 @@ def global_cmd(
             idx = labels.index(target)
         except ValueError:
             display.print_error(f"No worktree found for '{target}'")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from None
         if open_rows[idx].is_missing:
             display.print_error(
                 f"'{target}' is missing on disk — run `wt prune` to clean up."
@@ -607,7 +608,7 @@ def global_cmd(
             try:
                 raw = typer.prompt("\nOpen [repo/branch or # or q to quit]").strip()
             except (KeyboardInterrupt, typer.Abort):
-                raise typer.Exit(0)
+                raise typer.Exit(0) from None
             if raw == "q":
                 raise typer.Exit(0)
             if raw.isdigit():
