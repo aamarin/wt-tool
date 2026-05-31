@@ -1,3 +1,5 @@
+"""Rich-based display helpers for wt output."""
+
 import time
 from dataclasses import dataclass
 
@@ -13,6 +15,8 @@ err_console = Console(stderr=True)
 
 @dataclass
 class StatusRow:
+    """Data for a single row in the wt status table."""
+
     branch: str
     path: str
     is_dirty: bool
@@ -24,6 +28,8 @@ class StatusRow:
 
 @dataclass
 class RmSummaryRow:
+    """Data for a single row in the wt rm confirmation table."""
+
     branch: str
     path: str
     is_dirty: bool
@@ -32,6 +38,8 @@ class RmSummaryRow:
 
 @dataclass
 class OpenRow:
+    """Data for a single row in the wt open/global selection table."""
+
     label: str
     path: str
     is_dirty: bool
@@ -42,14 +50,17 @@ class OpenRow:
 
 
 def print_error(msg: str) -> None:
+    """Print an error message to stderr."""
     err_console.print(f"[red]✗[/red] {msg}")
 
 
 def print_success(msg: str) -> None:
+    """Print a success message to stdout."""
     console.print(f"[green]✓[/green] {msg}")
 
 
 def print_info(msg: str) -> None:
+    """Print an informational message to stdout."""
     console.print(f"[cyan]→[/cyan] {msg}")
 
 
@@ -93,6 +104,7 @@ def print_branch_table(branches: list[str]) -> None:
 
 
 def print_rm_summary(rows: list[RmSummaryRow]) -> None:
+    """Print a confirmation table of worktrees selected for removal."""
     table = Table(show_header=True, header_style="bold")
     table.add_column("#", style="dim", justify="right")
     table.add_column("Branch")
@@ -109,6 +121,7 @@ def print_rm_summary(rows: list[RmSummaryRow]) -> None:
 def print_worktree_table(
     worktrees: list[WorktreeInfo], wt_dir_name: str = "wt"
 ) -> None:
+    """Print a table of managed worktrees with their relative paths."""
     table = Table(show_header=True, header_style="bold")
     table.add_column("Branch")
     table.add_column("Path", style="dim")
@@ -136,6 +149,7 @@ def print_worktree_table(
 
 
 def print_status_table(rows: list[StatusRow]) -> None:
+    """Print a table of worktree health: state, sync, age, and session."""
     table = Table(show_header=True, header_style="bold")
     table.add_column("Branch")
     table.add_column("State", justify="center")
