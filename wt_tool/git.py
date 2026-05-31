@@ -4,7 +4,6 @@ import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -15,11 +14,11 @@ class WorktreeInfo:
 
     path: Path
     head: str
-    branch: Optional[str] = None  # None = detached HEAD
+    branch: str | None = None  # None = detached HEAD
     bare: bool = False
 
 
-def _run(cmd: list[str], cwd: Optional[Path] = None) -> str:
+def _run(cmd: list[str], cwd: Path | None = None) -> str:
     try:
         return subprocess.run(
             cmd, cwd=cwd, check=True, capture_output=True, text=True
@@ -90,7 +89,7 @@ def get_main_worktree_root() -> Path:
     return worktrees[0].path
 
 
-def get_main_worktree_root_silent() -> Optional[Path]:
+def get_main_worktree_root_silent() -> Path | None:
     """Returns the main worktree root, or None on any failure (no stderr output)."""
     try:
         result = subprocess.run(
