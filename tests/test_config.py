@@ -1,7 +1,10 @@
 import json
 import os
+from dataclasses import FrozenInstanceError
 from pathlib import Path
 from unittest.mock import patch
+
+import pytest
 
 from wt_tool.config import load_config, save_agent_cmd
 
@@ -29,8 +32,6 @@ class TestLoadConfig:
         assert cfg.agent_cmd == "aider"
 
     def test_immutable(self):
-        import pytest
-        from dataclasses import FrozenInstanceError
         cfg = load_config()
         with pytest.raises(FrozenInstanceError):
             cfg.wt_dir_name = "other"  # type: ignore[misc]
