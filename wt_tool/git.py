@@ -1,5 +1,6 @@
 """Git worktree parsing and subprocess wrappers for wt."""
 
+import contextlib
 import re
 import subprocess
 from dataclasses import dataclass
@@ -26,7 +27,7 @@ def _run(cmd: list[str], cwd: Path | None = None) -> str:
     except subprocess.CalledProcessError as e:
         from wt_tool.display import print_error
         print_error(e.stderr.strip() or " ".join(cmd))
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 def parse_worktrees(output: str) -> list[WorktreeInfo]:
@@ -79,7 +80,7 @@ def get_main_worktree_root() -> Path:
     except subprocess.CalledProcessError:
         from wt_tool.display import print_error
         print_error("Not inside a git repository")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     worktrees = parse_worktrees(out)
     if not worktrees:
@@ -90,7 +91,7 @@ def get_main_worktree_root() -> Path:
 
 
 def get_main_worktree_root_silent() -> Path | None:
-    """Returns the main worktree root, or None on any failure (no stderr output)."""
+    """Return the main worktree root, or None on any failure (no stderr output)."""
     try:
         result = subprocess.run(
             ["git", "worktree", "list", "--porcelain"],
@@ -105,7 +106,7 @@ def get_main_worktree_root_silent() -> Path | None:
 
 
 def list_branches_silent(root: Path) -> list[str]:
-    """Returns branch list, or [] on any failure (no stderr output)."""
+    """Return branch list, or [] on any failure (no stderr output)."""
     try:
         result = subprocess.run(
             [
@@ -138,7 +139,7 @@ def list_worktrees(root: Path) -> list[WorktreeInfo]:
 
 
 def list_worktrees_silent(root: Path) -> list[WorktreeInfo]:
-    """Returns empty list without printing errors if root is not a git repo."""
+    """Return empty list without printing errors if root is not a git repo."""
     try:
         result = subprocess.run(
             ["git", "worktree", "list", "--porcelain"],
@@ -219,13 +220,11 @@ def prune_worktrees(root: Path) -> None:
 
 def fetch_all(root: Path) -> None:
     """Fetch all remotes with pruning; failure is silently ignored."""
-    try:
+    with contextlib.suppress(subprocess.CalledProcessError):
         subprocess.run(
             ["git", "fetch", "--all", "--prune"],
             cwd=root, check=True, capture_output=True, text=True,
         )
-    except subprocess.CalledProcessError:
-        pass  # fetch failures are non-fatal
 
 
 def get_status_porcelain(wt_path: Path) -> str:

@@ -36,7 +36,7 @@ def _write_config_file(data: dict) -> None:
 
 
 def resolve_projects_dir() -> Path | None:
-    """Returns the configured projects dir, or None if never set."""
+    """Return the configured projects dir, or None if never set."""
     if "WT_PROJECTS_DIR" in os.environ:
         return Path(os.environ["WT_PROJECTS_DIR"]).expanduser()
     data = _read_config_file()
@@ -53,7 +53,7 @@ def save_projects_dir(path: Path) -> None:
 
 
 def resolve_agent_skills_dir() -> Path | None:
-    """Returns the saved agent skills dir, or None if never set."""
+    """Return the saved agent skills dir, or None if never set."""
     data = _read_config_file()
     if "agent_skills_dir" in data:
         return Path(data["agent_skills_dir"]).expanduser()
@@ -68,7 +68,7 @@ def save_agent_skills_dir(path: Path) -> None:
 
 
 def resolve_agent_cmd() -> str | None:
-    """Returns the configured agent command, or None if never explicitly set."""
+    """Return the configured agent command, or None if never explicitly set."""
     if "WT_AGENT_CMD" in os.environ:
         return os.environ["WT_AGENT_CMD"]
     data = _read_config_file()
@@ -85,7 +85,7 @@ def save_agent_cmd(cmd: str) -> None:
 
 
 def resolve_wt_dir_name() -> str | None:
-    """Returns the configured wt dir name, or None if never explicitly set."""
+    """Return the configured wt dir name, or None if never explicitly set."""
     if "WT_DIR_NAME" in os.environ:
         return os.environ["WT_DIR_NAME"]
     data = _read_config_file()
