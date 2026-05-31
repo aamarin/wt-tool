@@ -1,6 +1,7 @@
 from pathlib import Path
-import pytest
+
 from typer.testing import CliRunner
+
 from wt_tool.cli import app
 from wt_tool.config import Config
 
@@ -46,7 +47,7 @@ class TestRmConfirmation:
         mocker.patch("wt_tool.cli.display.print_rm_summary")
         result = runner.invoke(app, ["rm", "feat-a", "feat-b"], input="y\n")
         assert result.exit_code == 0
-        assert result.output.count("[y/N]") + result.output.count("Proceed?") <= 1
+        assert result.output.count("[y/N]") == 1
 
     def test_non_interactive_skips_confirmation(self, mocker, tmp_path):
         _setup(mocker, tmp_path)

@@ -1,7 +1,8 @@
 import subprocess
-from pathlib import Path
+
 import pytest
 from typer.testing import CliRunner
+
 from wt_tool.cli import app
 from wt_tool.config import Config
 
@@ -12,10 +13,20 @@ runner = CliRunner()
 def git_repo(tmp_path):
     """Real git repo with one empty commit on the default branch."""
     subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.email", "t@t.com"], cwd=tmp_path, check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.name", "T"], cwd=tmp_path, check=True, capture_output=True)
-    subprocess.run(["git", "commit", "--allow-empty", "-m", "init"], cwd=tmp_path, check=True, capture_output=True)
-    result = subprocess.run(["git", "branch", "--show-current"], cwd=tmp_path, capture_output=True, text=True, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "t@t.com"], cwd=tmp_path, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "T"], cwd=tmp_path, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "commit", "--allow-empty", "-m", "init"],
+        cwd=tmp_path, check=True, capture_output=True,
+    )
+    result = subprocess.run(
+        ["git", "branch", "--show-current"],
+        cwd=tmp_path, capture_output=True, text=True, check=True,
+    )
     default_branch = result.stdout.strip()
     return tmp_path, default_branch
 

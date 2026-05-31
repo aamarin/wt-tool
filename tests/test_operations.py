@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 # ── Shared fakes ──────────────────────────────────────────────────────────────
 
 def _make_session_name(repo, branch):
@@ -23,7 +22,9 @@ class FakeTmux:
 
 
 class FakeGit:
-    def __init__(self, tmp_path: Path, *, dirty_branches: set | None = None, fail_on: set | None = None):
+    def __init__(
+        self, tmp_path: Path, *, dirty_branches: set | None = None, fail_on: set | None = None
+    ):
         self.tmp_path = tmp_path
         self.dirty_branches = dirty_branches or set()
         self.fail_on = fail_on or set()

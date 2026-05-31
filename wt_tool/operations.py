@@ -60,7 +60,9 @@ def remove_worktrees(
     for branch in branch_list:
         wt_path = (root / wt_dir_name / branch).resolve()
         if cwd == wt_path or wt_path in cwd.parents:
-            display.print_error(f"Skipping '{branch}': cannot remove worktree you are currently inside")
+            display.print_error(
+                f"Skipping '{branch}': cannot remove worktree you are currently inside"
+            )
             skipped.append(branch)
             continue
         if not (root / wt_dir_name / branch).exists():
@@ -82,7 +84,9 @@ def remove_worktrees(
     successes: list[str] = []
     for branch in to_remove:
         if branch in dirty:
-            display.print_error(f"Skipping '{branch}': uncommitted changes (use --force to override)")
+            display.print_error(
+                f"Skipping '{branch}': uncommitted changes (use --force to override)"
+            )
             failures.append(branch)
             continue
         try:

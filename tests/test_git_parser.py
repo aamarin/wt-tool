@@ -1,7 +1,7 @@
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from wt_tool.git import parse_worktrees, parse_ahead_behind, get_status_porcelain_silent
+from wt_tool.git import get_status_porcelain_silent, parse_ahead_behind, parse_worktrees
 
 PORCELAIN_NORMAL = """\
 worktree /Users/andremarin/Development/pfms
@@ -54,7 +54,7 @@ class TestParseWorktrees:
         assert result[0].head == "abc123def456abc123def456abc123def456abc12"
 
     def test_detached_head_branch_is_none(self):
-        # This is the AWK bug case — detached HEAD must not inherit previous branch value
+        # AWK bug case — detached HEAD must not inherit previous branch value
         result = parse_worktrees(PORCELAIN_DETACHED)
         assert result[1].branch is None
 
@@ -65,7 +65,11 @@ class TestParseWorktrees:
 
     def test_strips_refs_heads_prefix(self):
         result = parse_worktrees(PORCELAIN_NORMAL)
-        assert not any(b.startswith("refs/") for b in [result[0].branch, result[1].branch] if b)
+        assert not any(
+            b.startswith("refs/")
+            for b in [result[0].branch, result[1].branch]
+            if b
+        )
 
     def test_empty_output(self):
         assert parse_worktrees("") == []

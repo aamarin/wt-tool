@@ -106,7 +106,9 @@ def print_rm_summary(rows: list[RmSummaryRow]) -> None:
     console.print(table)
 
 
-def print_worktree_table(worktrees: list[WorktreeInfo], wt_dir_name: str = "wt") -> None:
+def print_worktree_table(
+    worktrees: list[WorktreeInfo], wt_dir_name: str = "wt"
+) -> None:
     table = Table(show_header=True, header_style="bold")
     table.add_column("Branch")
     table.add_column("Path", style="dim")

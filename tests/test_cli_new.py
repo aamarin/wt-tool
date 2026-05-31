@@ -1,7 +1,5 @@
 from pathlib import Path
-from unittest.mock import patch
 
-import pytest
 from typer.testing import CliRunner
 
 from wt_tool.cli import app
@@ -96,7 +94,9 @@ class TestNewMultiBranch:
     def test_creates_from_base_flag(self, mocker, tmp_path):
         self._setup(mocker, tmp_path)
         add_wt = mocker.patch("wt_tool.cli.git.add_worktree")
-        result = runner.invoke(app, ["new", "feat-a", "feat-b", "--base", "main", "--non-interactive"])
+        result = runner.invoke(
+            app, ["new", "feat-a", "feat-b", "--base", "main", "--non-interactive"]
+        )
         assert result.exit_code == 0
         assert add_wt.call_count == 2
         bases = [c[0][3] for c in add_wt.call_args_list]

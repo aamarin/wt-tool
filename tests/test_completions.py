@@ -3,7 +3,11 @@ from unittest.mock import patch
 
 import pytest
 
-from wt_tool.cli import _complete_managed_branches, _complete_base_branches, _complete_global_targets
+from wt_tool.cli import (
+    _complete_base_branches,
+    _complete_global_targets,
+    _complete_managed_branches,
+)
 from wt_tool.git import WorktreeInfo
 
 
@@ -23,8 +27,13 @@ class TestCompleteManagedBranches:
             _make_worktree("/repo/wt/feat-a", "feat-a"),
             _make_worktree("/repo/wt/feat-b", "feat-b"),
         ]
-        with patch("wt_tool.cli.git.get_main_worktree_root_silent", return_value=Path("/repo")), \
-             patch("wt_tool.cli.git.list_worktrees_silent", return_value=worktrees):
+        with (
+            patch(
+                "wt_tool.cli.git.get_main_worktree_root_silent",
+                return_value=Path("/repo"),
+            ),
+            patch("wt_tool.cli.git.list_worktrees_silent", return_value=worktrees),
+        ):
             result = _complete_managed_branches()
         assert result == ["feat-a", "feat-b"]
 
@@ -33,8 +42,13 @@ class TestCompleteManagedBranches:
             _make_worktree("/repo", "main"),
             _make_worktree("/repo/wt/only-branch", "only-branch"),
         ]
-        with patch("wt_tool.cli.git.get_main_worktree_root_silent", return_value=Path("/repo")), \
-             patch("wt_tool.cli.git.list_worktrees_silent", return_value=worktrees):
+        with (
+            patch(
+                "wt_tool.cli.git.get_main_worktree_root_silent",
+                return_value=Path("/repo"),
+            ),
+            patch("wt_tool.cli.git.list_worktrees_silent", return_value=worktrees),
+        ):
             result = _complete_managed_branches()
         assert "main" not in result
         assert result == ["only-branch"]
@@ -44,8 +58,13 @@ class TestCompleteManagedBranches:
             _make_worktree("/repo/wt/detached", None),
             _make_worktree("/repo/wt/normal", "normal"),
         ]
-        with patch("wt_tool.cli.git.get_main_worktree_root_silent", return_value=Path("/repo")), \
-             patch("wt_tool.cli.git.list_worktrees_silent", return_value=worktrees):
+        with (
+            patch(
+                "wt_tool.cli.git.get_main_worktree_root_silent",
+                return_value=Path("/repo"),
+            ),
+            patch("wt_tool.cli.git.list_worktrees_silent", return_value=worktrees),
+        ):
             result = _complete_managed_branches()
         assert result == ["normal"]
 
@@ -56,8 +75,13 @@ class TestCompleteManagedBranches:
             _make_worktree("/home/user/wt/myrepo", "main"),
             _make_worktree("/home/user/wt/myrepo/wt/feat", "feat"),
         ]
-        with patch("wt_tool.cli.git.get_main_worktree_root_silent", return_value=Path("/home/user/wt/myrepo")), \
-             patch("wt_tool.cli.git.list_worktrees_silent", return_value=worktrees):
+        with (
+            patch(
+                "wt_tool.cli.git.get_main_worktree_root_silent",
+                return_value=Path("/home/user/wt/myrepo"),
+            ),
+            patch("wt_tool.cli.git.list_worktrees_silent", return_value=worktrees),
+        ):
             result = _complete_managed_branches()
         assert result == ["feat"]
         assert "main" not in result
@@ -70,8 +94,16 @@ class TestCompleteManagedBranches:
 
 class TestCompleteBaseBranches:
     def test_returns_branch_list(self):
-        with patch("wt_tool.cli.git.get_main_worktree_root_silent", return_value=Path("/repo")), \
-             patch("wt_tool.cli.git.list_branches_silent", return_value=["main", "origin/feat"]):
+        with (
+            patch(
+                "wt_tool.cli.git.get_main_worktree_root_silent",
+                return_value=Path("/repo"),
+            ),
+            patch(
+                "wt_tool.cli.git.list_branches_silent",
+                return_value=["main", "origin/feat"],
+            ),
+        ):
             result = _complete_base_branches()
         assert result == ["main", "origin/feat"]
 
@@ -125,6 +157,9 @@ class TestCompleteGlobalTargets:
         assert result == []
 
     def test_returns_empty_list_on_exception(self):
-        with patch("wt_tool.cli.resolve_projects_dir", side_effect=RuntimeError("fail")):
+        with patch(
+            "wt_tool.cli.resolve_projects_dir",
+            side_effect=RuntimeError("fail"),
+        ):
             result = _complete_global_targets()
         assert result == []

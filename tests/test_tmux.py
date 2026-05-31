@@ -1,7 +1,7 @@
-from unittest.mock import MagicMock, patch
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
-from wt_tool.tmux import has_session, make_session_name, ensure_session
+from wt_tool.tmux import ensure_session, has_session, make_session_name
 
 
 class TestHasSession:
@@ -42,16 +42,22 @@ class TestMakeSessionName:
 
     def test_sanitizes_colons(self):
         # tmux interprets colons as session:window:pane separator
-        assert make_session_name("myrepo", "feat:my-feature") == "myrepo__feat-my-feature"
+        assert (
+            make_session_name("myrepo", "feat:my-feature") == "myrepo__feat-my-feature"
+        )
         assert make_session_name("myrepo", "a:b:c") == "myrepo__a-b-c"
 
 
 class TestEnsureSession:
     def test_creates_when_missing(self):
-        with patch("wt_tool.tmux.has_session", return_value=False) as mock_has, \
-             patch("wt_tool.tmux.create_session") as mock_create:
+        with (
+            patch("wt_tool.tmux.has_session", return_value=False),
+            patch("wt_tool.tmux.create_session") as mock_create,
+        ):
             ensure_session("my-branch", Path("/tmp/path"), "claude")
-            mock_create.assert_called_once_with("my-branch", Path("/tmp/path"), "claude")
+            mock_create.assert_called_once_with(
+                "my-branch", Path("/tmp/path"), "claude"
+            )
 
     def test_skips_when_already_exists(self):
         with patch("wt_tool.tmux.has_session", return_value=True), \
