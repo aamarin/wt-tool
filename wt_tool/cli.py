@@ -2,7 +2,7 @@ import importlib.resources
 import os
 import shutil
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated, List, Optional
 
 import typer
 
@@ -259,40 +259,52 @@ def open_cmd(
 
 @app.command()
 def new(
-    branch: Annotated[Optional[str], typer.Argument(help="New branch name")] = None,
+    branches: Annotated[Optional[List[str]], typer.Argument(help="New branch name(s)")] = None,
     base: Annotated[
         Optional[str],
-        typer.Argument(help="Base branch", autocompletion=_complete_base_branches),
+        typer.Option(
+            "--base", "-b",
+            help="Base branch (also accepted as last positional)",
+            autocompletion=_complete_base_branches,
+        ),
     ] = None,
     non_interactive: Annotated[
         bool,
         typer.Option("--non-interactive", help="Error if args missing; no tmux attach"),
     ] = False,
 ) -> None:
-    """Create a new worktree and tmux session."""
+    """Create one or more new worktrees and tmux sessions."""
+    from wt_tool.operations import create_worktrees
+
     cfg = load_config()
     root = git.get_main_worktree_root()
 
-    if branch is None:
+    # Resolve branch list
+    if not branches:
         if non_interactive:
             display.print_error("--non-interactive requires branch and base arguments")
             raise typer.Exit(1)
-        branch = typer.prompt("New branch name")
+        branch_list = [typer.prompt("New branch name").strip()]
+    else:
+        branch_list = list(branches)
 
+    # Extract base from last positional when --base not given
+    if base is None and len(branch_list) >= 2:
+        base = branch_list[-1]
+        branch_list = branch_list[:-1]
+
+    # Prompt for base if still unresolved
     if base is None:
         if non_interactive:
             display.print_error("--non-interactive requires branch and base arguments")
             raise typer.Exit(1)
         git.fetch_all(root)
-        branches = git.list_branches(root)
-        if not branches:
+        all_branches = git.list_branches(root)
+        if not all_branches:
             display.print_error("No branches found to base from")
             raise typer.Exit(1)
-
-        display.print_info(
-            f"No base branch specified for '{branch}' — pick one to branch from:"
-        )
-        display.print_branch_table(branches)
+        display.print_info("No base branch specified — pick one to branch from:")
+        display.print_branch_table(all_branches)
         while base is None:
             try:
                 raw = typer.prompt("\nBase branch [name or # or q to quit]").strip()
@@ -302,11 +314,11 @@ def new(
                 raise typer.Exit(0)
             if raw.isdigit():
                 idx = int(raw)
-                if 1 <= idx <= len(branches):
-                    base = branches[idx - 1]
+                if 1 <= idx <= len(all_branches):
+                    base = all_branches[idx - 1]
                 else:
-                    display.print_error(f"Enter a number between 1 and {len(branches)}")
-            elif raw in branches:
+                    display.print_error(f"Enter a number between 1 and {len(all_branches)}")
+            elif raw in all_branches:
                 base = raw
             else:
                 display.print_error(f"Unknown branch '{raw}'")
@@ -320,11 +332,6 @@ def new(
         save_wt_dir_name(raw.strip() or "wt")
         cfg = load_config()
 
-    wt_path = root / cfg.wt_dir_name / branch
-
-    if wt_path.exists():
-        display.print_error(f"Worktree already exists: {wt_path}")
-        raise typer.Exit(1)
 
     agent_cmd = cfg.agent_cmd
     if not non_interactive and resolve_agent_cmd() is None:
@@ -336,70 +343,152 @@ def new(
         agent_cmd = raw.strip()
         save_agent_cmd(agent_cmd)
 
-    display.print_info(f"Creating worktree '{branch}' from '{base}'...")
-    git.add_worktree(root, branch, wt_path, base)
-
     repo_name = git.get_repo_name(root)
-    session = tmux.make_session_name(repo_name, branch)
-    tmux.ensure_session(session, wt_path, agent_cmd)
-    display.print_success(f"Created: {wt_path}")
+    successes, failures = create_worktrees(
+        branch_list, base, root, cfg.wt_dir_name, repo_name, agent_cmd,
+        add_worktree_fn=git.add_worktree,
+        ensure_session_fn=tmux.ensure_session,
+        make_session_name_fn=tmux.make_session_name,
+    )
 
-    if not non_interactive:
+    # Attach (single branch, interactive) or print paths
+    if not non_interactive and len(branch_list) == 1 and successes:
+        session = tmux.make_session_name(repo_name, successes[0])
         tmux.attach(session)
     else:
-        print(str(wt_path))
+        for branch in successes:
+            print(str(root / cfg.wt_dir_name / branch))
+
+    if len(branch_list) > 1:
+        if failures:
+            display.print_error(f"Failed: {', '.join(failures)}")
+        display.print_success(f"Created {len(successes)}/{len(branch_list)} worktrees")
+
+    if failures:
+        raise typer.Exit(1)
 
 
 @app.command()
 def rm(
-    branch: Annotated[
-        str,
+    branches: Annotated[
+        Optional[List[str]],
         typer.Argument(
-            help="Branch / worktree to remove",
+            help="Branch(es) to remove",
             autocompletion=_complete_managed_branches,
         ),
-    ],
+    ] = None,
+    force: Annotated[
+        bool,
+        typer.Option(
+            "--force", "-f",
+            help="Skip dirty check. Removes even if the worktree has uncommitted changes.",
+        ),
+    ] = False,
     non_interactive: Annotated[
-        bool, typer.Option("--non-interactive", help="Skip confirmation")
+        bool, typer.Option("--non-interactive", help="Skip confirmation prompts")
     ] = False,
 ) -> None:
-    """Remove a worktree, branch, and tmux session."""
+    """Remove one or more worktrees, branches, and tmux sessions."""
+    from wt_tool.display import RmSummaryRow
+    from wt_tool.operations import remove_worktrees
+
     cfg = load_config()
     root = git.get_main_worktree_root()
-    wt_path = root / cfg.wt_dir_name / branch
+    cwd = Path(os.getcwd()).resolve()
+
+    if not branches:
+        if non_interactive:
+            display.print_error("--non-interactive requires at least one branch argument")
+            raise typer.Exit(1)
+        worktrees = git.list_worktrees(root)
+        managed = [wt for wt in worktrees if cfg.wt_dir_name in wt.path.parts and wt.branch]
+        if not managed:
+            display.print_error("No managed worktrees found")
+            raise typer.Exit(1)
+        display.print_branch_table([wt.branch for wt in managed if wt.branch])
+        selected: str | None = None
+        while selected is None:
+            try:
+                raw = typer.prompt("\nRemove [branch name or # or q to quit]").strip()
+            except (KeyboardInterrupt, typer.Abort):
+                raise typer.Exit(0)
+            if raw == "q":
+                raise typer.Exit(0)
+            if raw.isdigit():
+                idx = int(raw)
+                if 1 <= idx <= len(managed):
+                    selected = managed[idx - 1].branch
+                else:
+                    display.print_error(f"Enter a number between 1 and {len(managed)}")
+            else:
+                match = next((wt.branch for wt in managed if wt.branch == raw), None)
+                if match:
+                    selected = match
+                else:
+                    display.print_error(f"Unknown branch '{raw}'")
+        branch_list = [selected]
+    else:
+        branch_list = list(branches)
 
     repo_name = git.get_repo_name(root)
-    session = tmux.make_session_name(repo_name, branch)
-    has_wt = wt_path.exists()
-    session_exists = tmux.has_session(session)
 
-    cwd = Path(os.getcwd()).resolve()
-    if cwd == wt_path.resolve() or wt_path.resolve() in cwd.parents:
-        display.print_error("Cannot remove worktree you are currently inside")
-        raise typer.Exit(1)
-
-    if not has_wt and not session_exists:
-        display.print_error(
-            f"Nothing found for '{branch}' —"
-            f" no worktree at {wt_path} and no session '{session}'"
-        )
-        raise typer.Exit(1)
-
-    if not non_interactive:
-        typer.confirm(f"Remove worktree + branch '{branch}'?", abort=True)
-
-    if has_wt:
-        git.remove_worktree(root, wt_path)
-        git.delete_branch(root, branch)
-        display.print_success(f"Removed worktree and branch '{branch}'")
+    if len(branch_list) > 1:
+        cwd_blocked = [
+            b for b in branch_list
+            if cwd == (root / cfg.wt_dir_name / b).resolve()
+            or (root / cfg.wt_dir_name / b).resolve() in cwd.parents
+        ]
+        for b in cwd_blocked:
+            display.print_error(
+                f"Skipping '{b}': cannot remove the worktree you are currently inside\n"
+                f"  cd {root} && wt rm {b} --non-interactive"
+            )
+        to_remove = [b for b in branch_list if b not in cwd_blocked]
+        visible = [b for b in to_remove if (root / cfg.wt_dir_name / b).exists()]
+        if visible:
+            dirty_preview = (
+                [] if force
+                else [b for b in visible if git.get_status_porcelain(root / cfg.wt_dir_name / b)]
+            )
+            active_preview = [
+                b for b in visible
+                if tmux.has_session(tmux.make_session_name(repo_name, b))
+            ]
+            display.print_rm_summary([
+                RmSummaryRow(
+                    branch=b,
+                    path=str(root / cfg.wt_dir_name / b),
+                    is_dirty=(b in dirty_preview),
+                    session_active=(b in active_preview),
+                )
+                for b in visible
+            ])
+        if not non_interactive:
+            typer.confirm(f"Remove {len(visible)} worktrees?", abort=True)
     else:
-        display.print_info(f"No worktree found at {wt_path} — skipping")
+        cwd_blocked = []
+        to_remove = branch_list
+        if not non_interactive:
+            typer.confirm(f"Remove worktree + branch '{branch_list[0]}'?", abort=True)
 
-    if session_exists:
-        tmux.kill_session(session)
-        display.print_success(f"Killed tmux session '{session}'")
-    else:
-        display.print_info(f"No tmux session '{session}' — skipping")
+    successes, failures, skipped = remove_worktrees(
+        to_remove, root, cfg.wt_dir_name, repo_name, cwd, force,
+        get_status_fn=git.get_status_porcelain,
+        has_session_fn=tmux.has_session,
+        remove_worktree_fn=git.remove_worktree,
+        delete_branch_fn=git.delete_branch,
+        kill_session_fn=tmux.kill_session,
+        make_session_name_fn=tmux.make_session_name,
+    )
+
+    if len(branch_list) > 1:
+        all_skipped = skipped + cwd_blocked
+        if failures or all_skipped:
+            display.print_error(f"Failed/skipped: {', '.join(failures + all_skipped)}")
+        display.print_success(f"Removed {len(successes)}/{len(branch_list)} worktrees")
+
+    if not successes or failures:
+        raise typer.Exit(1)
 
 
 @app.command(name="global")
