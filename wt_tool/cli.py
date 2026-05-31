@@ -4,7 +4,7 @@ import importlib.resources
 import os
 import shutil
 from pathlib import Path
-from typing import Annotated, List, Optional
+from typing import Annotated
 
 import typer
 
@@ -146,7 +146,7 @@ def status() -> None:
 @app.command(name="open")
 def open_cmd(
     branch: Annotated[
-        Optional[str],
+        str | None,
         typer.Argument(
             help="Branch to open", autocompletion=_complete_managed_branches
         ),
@@ -262,9 +262,9 @@ def open_cmd(
 
 @app.command()
 def new(
-    branches: Annotated[Optional[List[str]], typer.Argument(help="New branch name(s)")] = None,
+    branches: Annotated[list[str] | None, typer.Argument(help="New branch name(s)")] = None,
     base: Annotated[
-        Optional[str],
+        str | None,
         typer.Option(
             "--base", "-b",
             help="Base branch (also accepted as last positional)",
@@ -374,7 +374,7 @@ def new(
 @app.command()
 def rm(
     branches: Annotated[
-        Optional[List[str]],
+        list[str] | None,
         typer.Argument(
             help="Branch(es) to remove",
             autocompletion=_complete_managed_branches,
@@ -497,7 +497,7 @@ def rm(
 @app.command(name="global")
 def global_cmd(
     target: Annotated[
-        Optional[str],
+        str | None,
         typer.Argument(
             help="repo/branch to open directly",
             autocompletion=_complete_global_targets,
@@ -696,7 +696,7 @@ app.add_typer(install_app)
 @install_app.command(name="agent-skill")
 def install_agent_skill(
     path: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--path", "-p", help="Target skills directory"),
     ] = None,
 ) -> None:
