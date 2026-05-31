@@ -377,7 +377,13 @@ def rm(
             autocompletion=_complete_managed_branches,
         ),
     ] = None,
-    force: Annotated[bool, typer.Option("--force", "-f", help="Skip dirty check")] = False,
+    force: Annotated[
+        bool,
+        typer.Option(
+            "--force", "-f",
+            help="Skip dirty check. Removes even if the worktree has uncommitted changes.",
+        ),
+    ] = False,
     non_interactive: Annotated[
         bool, typer.Option("--non-interactive", help="Skip confirmation prompts")
     ] = False,
