@@ -1,3 +1,5 @@
+"""Git worktree parsing and subprocess wrappers for wt."""
+
 import re
 import subprocess
 from dataclasses import dataclass
@@ -8,6 +10,8 @@ import typer
 
 @dataclass
 class WorktreeInfo:
+    """Parsed metadata for a single git worktree entry."""
+
     path: Path
     head: str
     branch: str | None = None  # None = detached HEAD
@@ -66,6 +70,7 @@ def parse_worktrees(output: str) -> list[WorktreeInfo]:
 
 
 def get_main_worktree_root() -> Path:
+    """Return the root path of the main worktree, exiting with code 1 on failure."""
     try:
         out = subprocess.run(
             ["git", "worktree", "list", "--porcelain"],
@@ -127,6 +132,7 @@ def list_branches_silent(root: Path) -> list[str]:
 
 
 def list_worktrees(root: Path) -> list[WorktreeInfo]:
+    """Return all worktrees for the repo at root."""
     out = _run(["git", "worktree", "list", "--porcelain"], cwd=root)
     return parse_worktrees(out + "\n")
 
@@ -146,10 +152,12 @@ def list_worktrees_silent(root: Path) -> list[WorktreeInfo]:
 
 
 def get_repo_name(root: Path) -> str:
+    """Return the repository name derived from its root directory."""
     return root.name
 
 
 def list_branches(root: Path) -> list[str]:
+    """Return sorted deduplicated branch names for the repo at root."""
     out = _run(
         [
             "git", "for-each-ref",
@@ -179,6 +187,7 @@ def _branch_exists(root: Path, branch: str) -> bool:
 
 
 def add_worktree(root: Path, branch: str, wt_path: Path, base: str) -> None:
+    """Add a new worktree, creating the branch from base if it does not already exist."""
     fetch_all(root)
     if _branch_exists(root, branch):
         _run(["git", "worktree", "add", str(wt_path), branch], cwd=root)
@@ -187,10 +196,12 @@ def add_worktree(root: Path, branch: str, wt_path: Path, base: str) -> None:
 
 
 def remove_worktree(root: Path, wt_path: Path) -> None:
+    """Remove a worktree by path, forcing removal even if there are uncommitted changes."""
     _run(["git", "worktree", "remove", "--force", str(wt_path)], cwd=root)
 
 
 def delete_branch(root: Path, branch: str) -> None:
+    """Delete a local branch, printing a warning on failure instead of exiting."""
     try:
         subprocess.run(
             ["git", "branch", "-d", branch],
@@ -202,10 +213,12 @@ def delete_branch(root: Path, branch: str) -> None:
 
 
 def prune_worktrees(root: Path) -> None:
+    """Run git worktree prune to remove metadata for worktrees missing from disk."""
     _run(["git", "worktree", "prune"], cwd=root)
 
 
 def fetch_all(root: Path) -> None:
+    """Fetch all remotes with pruning; failure is silently ignored."""
     try:
         subprocess.run(
             ["git", "fetch", "--all", "--prune"],
@@ -216,6 +229,7 @@ def fetch_all(root: Path) -> None:
 
 
 def get_status_porcelain(wt_path: Path) -> str:
+    """Return the porcelain status output for the worktree at wt_path."""
     return _run(["git", "-C", str(wt_path), "status", "--porcelain"])
 
 
@@ -245,6 +259,7 @@ def parse_ahead_behind(status_sb_line: str) -> tuple[int, int]:
 
 
 def get_status_sb(wt_path: Path) -> str:
+    """Return the first line of git status -sb for the worktree at wt_path."""
     try:
         out = subprocess.run(
             ["git", "-C", str(wt_path), "status", "-sb"],
@@ -256,6 +271,7 @@ def get_status_sb(wt_path: Path) -> str:
 
 
 def get_last_commit_timestamp(wt_path: Path) -> int:
+    """Return the Unix timestamp of the most recent commit, or 0 on failure."""
     try:
         out = subprocess.run(
             ["git", "-C", str(wt_path), "log", "-1", "--format=%ct"],

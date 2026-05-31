@@ -1,3 +1,5 @@
+"""Business-logic operations for worktree creation and removal."""
+
 from collections.abc import Callable
 from pathlib import Path
 

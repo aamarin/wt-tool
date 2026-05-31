@@ -1,3 +1,5 @@
+"""Configuration loading and persistence for wt."""
+
 import json
 import os
 import sys
@@ -9,6 +11,8 @@ CONFIG_FILE = Path.home() / ".config" / "wt" / "config.json"
 
 @dataclass(frozen=True)
 class Config:
+    """Resolved runtime configuration for a wt session."""
+
     wt_dir_name: str
     projects_dir: Path
     agent_cmd: str
@@ -42,6 +46,7 @@ def resolve_projects_dir() -> Path | None:
 
 
 def save_projects_dir(path: Path) -> None:
+    """Persist the projects directory path to the config file."""
     data = _read_config_file()
     data["projects_dir"] = str(path)
     _write_config_file(data)
@@ -56,6 +61,7 @@ def resolve_agent_skills_dir() -> Path | None:
 
 
 def save_agent_skills_dir(path: Path) -> None:
+    """Persist the agent skills directory path to the config file."""
     data = _read_config_file()
     data["agent_skills_dir"] = str(path)
     _write_config_file(data)
@@ -72,6 +78,7 @@ def resolve_agent_cmd() -> str | None:
 
 
 def save_agent_cmd(cmd: str) -> None:
+    """Persist the agent command to the config file."""
     data = _read_config_file()
     data["agent_cmd"] = cmd
     _write_config_file(data)
@@ -88,12 +95,14 @@ def resolve_wt_dir_name() -> str | None:
 
 
 def save_wt_dir_name(name: str) -> None:
+    """Persist the worktree directory name to the config file."""
     data = _read_config_file()
     data["wt_dir_name"] = name
     _write_config_file(data)
 
 
 def load_config() -> Config:
+    """Return a fully-resolved Config, merging env vars over file values over defaults."""
     data = _read_config_file()
     return Config(
         wt_dir_name=os.environ.get("WT_DIR_NAME", data.get("wt_dir_name", "wt")),

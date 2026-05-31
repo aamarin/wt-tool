@@ -1,3 +1,5 @@
+"""Typer CLI entrypoint and command definitions for the wt tool."""
+
 import importlib.resources
 import os
 import shutil
@@ -32,6 +34,7 @@ app = typer.Typer(
 
 @app.callback()
 def default(ctx: typer.Context) -> None:
+    """Default to open when wt is invoked with no subcommand."""
     if ctx.invoked_subcommand is None:
         open_cmd()
 

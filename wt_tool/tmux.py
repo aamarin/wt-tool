@@ -1,14 +1,18 @@
+"""tmux session lifecycle management for wt."""
+
 import os
 import subprocess
 from pathlib import Path
 
 
 def make_session_name(repo: str, branch: str) -> str:
+    """Return a tmux session name scoped to repo and branch."""
     # tmux parses colons as session:window:pane — replace with dash
     return f"{repo}__{branch}".replace(":", "-")
 
 
 def has_session(session: str) -> bool:
+    """Return True if a tmux session with the given name exists."""
     result = subprocess.run(
         ["tmux", "has-session", "-t", f"={session}"],
         stdout=subprocess.DEVNULL,
@@ -18,6 +22,7 @@ def has_session(session: str) -> bool:
 
 
 def create_session(session: str, path: Path, agent_cmd: str) -> None:
+    """Create a tmux session with term, deploy, and agent windows."""
     subprocess.run(
         ["tmux", "new-session", "-d", "-s", session, "-n", "term", "-c", str(path)],
         check=True, capture_output=True,
@@ -39,6 +44,7 @@ def create_session(session: str, path: Path, agent_cmd: str) -> None:
 
 
 def kill_session(session: str) -> None:
+    """Kill the tmux session with the given name, ignoring errors."""
     subprocess.run(
         ["tmux", "kill-session", "-t", f"={session}"],
         stdout=subprocess.DEVNULL,
@@ -47,11 +53,13 @@ def kill_session(session: str) -> None:
 
 
 def ensure_session(session: str, path: Path, agent_cmd: str) -> None:
+    """Create a tmux session only if one does not already exist."""
     if not has_session(session):
         create_session(session, path, agent_cmd)
 
 
 def attach(session: str) -> None:
+    """Attach to a tmux session, switching client if already inside tmux."""
     if os.environ.get("TMUX"):
         os.execvp("tmux", ["tmux", "switch-client", "-t", f"={session}"])
     else:
