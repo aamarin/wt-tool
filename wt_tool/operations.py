@@ -1,4 +1,4 @@
-"""Pure business-logic operations for worktree creation and removal."""
+"""Business-logic operations for worktree creation and removal."""
 
 from pathlib import Path
 from typing import Callable
