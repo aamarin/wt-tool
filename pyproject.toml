@@ -22,4 +22,11 @@ packages = ["wt_tool"]
 dev = [
     "pytest>=8.0",
     "pytest-mock>=3.0",
+    "ruff>=0.4",
 ]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I"]

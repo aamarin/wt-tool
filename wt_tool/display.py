@@ -23,6 +23,14 @@ class StatusRow:
 
 
 @dataclass
+class RmSummaryRow:
+    branch: str
+    path: str
+    is_dirty: bool
+    session_active: bool
+
+
+@dataclass
 class OpenRow:
     label: str
     path: str
@@ -84,7 +92,23 @@ def print_branch_table(branches: list[str]) -> None:
     console.print(table)
 
 
-def print_worktree_table(worktrees: list[WorktreeInfo], wt_dir_name: str = "wt") -> None:
+def print_rm_summary(rows: list[RmSummaryRow]) -> None:
+    table = Table(show_header=True, header_style="bold")
+    table.add_column("#", style="dim", justify="right")
+    table.add_column("Branch")
+    table.add_column("State", justify="center")
+    table.add_column("Session", justify="center")
+    table.add_column("Path", style="dim")
+    for i, row in enumerate(rows, 1):
+        state = "[yellow]⚠ dirty[/yellow]" if row.is_dirty else "[green]✓[/green]"
+        session = "[yellow]active[/yellow]" if row.session_active else "[dim]none[/dim]"
+        table.add_row(str(i), row.branch, state, session, row.path)
+    console.print(table)
+
+
+def print_worktree_table(
+    worktrees: list[WorktreeInfo], wt_dir_name: str = "wt"
+) -> None:
     table = Table(show_header=True, header_style="bold")
     table.add_column("Branch")
     table.add_column("Path", style="dim")

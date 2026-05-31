@@ -57,13 +57,17 @@ Two layers: agent control plane and human UI. Never mix them.
 All commands accept `--non-interactive` to suppress prompts and tmux attach.
 
 ```bash
-wt ls                                      # list all worktrees: branch name + path
-wt status                                  # health: dirty, sync, stale, tmux active
-wt prune                                   # cleanup stale worktree refs
-wt new <branch> <base> --non-interactive   # create worktree + session, print path
-wt open <branch> --non-interactive         # ensure session exists, print path
-wt rm <branch> --non-interactive           # remove worktree + branch + session, no confirm
-wt global <repo>/<branch> --non-interactive  # ensure session exists, print path
+wt ls                                               # list all worktrees: branch name + path
+wt status                                           # health: dirty, sync, stale, tmux active
+wt prune                                            # cleanup stale worktree refs
+wt new <branch> <base> --non-interactive            # create worktree + session, print path
+wt new <b1> <b2> <base> --non-interactive           # create multiple worktrees from same base
+wt new <b1> <b2> --base <base> --non-interactive    # explicit --base/-b flag form
+wt open <branch> --non-interactive                  # ensure session exists, print path
+wt rm <branch> --non-interactive                    # remove worktree + branch + session, no confirm
+wt rm <b1> <b2> <b3> --non-interactive              # remove multiple worktrees in one call
+wt rm <branch> --force --non-interactive            # skip dirty check
+wt global <repo>/<branch> --non-interactive         # ensure session exists, print path
 ```
 
 `wt open <branch> --non-interactive` is the primary agent entry point for existing worktrees:
@@ -77,13 +81,18 @@ cd "$path"
 ### Human UI (tmux attach/switch — do not call from agents)
 
 ```bash
-wt                           # same as wt open (default when no args given)
-wt open                      # Rich table picker, attaches tmux session
-wt open <branch>             # direct switch to branch, attaches tmux session
-wt global                    # Rich table across all repos under WT_PROJECTS_DIR
-wt global <repo>/<branch>    # direct cross-repo switch
-wt new [branch]              # omitting base shows Rich table to pick base branch
-wt rm <branch>               # requires y/N confirm
+wt                                # same as wt open (default when no args given)
+wt open                           # Rich table picker, attaches tmux session
+wt open <branch>                  # direct switch to branch, attaches tmux session
+wt global                         # Rich table across all repos under WT_PROJECTS_DIR
+wt global <repo>/<branch>         # direct cross-repo switch
+wt new [branch]                   # omitting base shows Rich table to pick base branch
+wt new <b1> <b2> [base]           # create multiple worktrees; base = last positional
+wt new <b1> <b2> --base <base>    # same via explicit --base/-b flag
+wt rm                             # interactive picker (no args) — pick from Rich table
+wt rm <branch>                    # requires y/N confirm
+wt rm <b1> <b2> <b3>              # remove multiple; single y/N confirm with summary table
+wt rm <branch> --force            # skip dirty check
 ```
 
 **Config:**
@@ -126,14 +135,19 @@ cd "$path"
 
 ### Parallel workstreams
 
-Multiple independent environments can coexist. For example, two debugging contexts:
+Multiple independent environments can coexist. Create them one at a time or in bulk:
 
+```bash
+wt new debug/api debug/ui main --non-interactive   # two worktrees from main in one call
+```
+
+Or equivalently:
 ```
 wt new debug/api main     → user creates first environment
 wt new debug/ui main      → user creates second environment
 ```
 
-Agents then work in `wt/debug/api/` and `wt/debug/ui/` independently. Use `wt status` to see all active environments and their health at a glance.
+Multi-branch `wt new` suppresses tmux attach and prints each path on a separate line. Agents then work in `wt/debug/api/` and `wt/debug/ui/` independently. Use `wt status` to see all active environments and their health at a glance.
 
 ### Clean up a finished environment
 
@@ -144,13 +158,16 @@ the worktree and tmux session:
 path=$(wt open <next-branch> --non-interactive)   # move to next environment first
 cd "$path"
 wt rm <merged-branch> --non-interactive            # removes worktree + branch + tmux session
+wt rm b1 b2 b3 --non-interactive                  # remove multiple in one call
 ```
 
 `wt rm` handles all three: filesystem worktree, git branch reference, and tmux session.
 Tools that use raw `git worktree remove` + `git branch -d` miss the tmux cleanup —
 always use `wt rm` instead.
 
-`wt rm` blocks with an error if `$PWD` is inside the target worktree.
+`wt rm` blocks with an error if `$PWD` is inside the target worktree. In multi-branch mode, it skips the cwd-targeted branch with an error and removes the rest.
+
+Use `--force` to skip the dirty check for uncommitted changes.
 
 **Orphaned sessions from naming migration:** If `tmux ls` shows sessions named only `<branch>` (without a repo prefix), these are pre-migration orphans. They are harmless — `wt` will not attach to or manage them — but they consume tmux server resources. Kill them manually:
 
@@ -171,13 +188,16 @@ Check for stale environments, diverged branches, or missing tmux sessions before
 **Do:**
 - Use `wt open <branch> --non-interactive` to enter an existing worktree — prints path, no tmux attach
 - Use `wt new <branch> <base> --non-interactive` to create; errors if worktree already exists
+- Use `wt new <b1> <b2> <base> --non-interactive` or `--base <base>` for multiple branches
 - Use `wt rm <branch> --non-interactive` after `cd`-ing out of the worktree first
+- Use `wt rm <b1> <b2> --non-interactive` to remove multiple branches in one call
+- Use `--force` with `wt rm` to skip dirty checks
 - Run `wt ls` and `wt status` freely — read-only
 - Tell the user to run `wt open`, `wt global`, and `wt rm` without `--non-interactive` — those are human UI
 
 **Don't:**
 - Call `wt open` or `wt global` from agent code — they attach tmux sessions and are human UI
-- Run `wt new <branch>` without a base — the interactive picker will block
+- Run `wt new <branch>` without a base in `--non-interactive` mode — it will error
 - Run `wt rm <branch>` from inside that worktree — the self-deletion guard will block it
 - Use raw `git worktree add` — it bypasses the tmux session setup
 - Look for a wt state file or registry — there is none; git + filesystem + tmux are authoritative
@@ -190,8 +210,9 @@ When `using-git-worktrees` reaches Step 1a ("is there a native worktree tool?"),
 ## Red Flags
 
 - Calling `wt open` or `wt global` from agent code — these attach tmux (human UI layer)
-- Calling `wt new <branch>` without a base — the interactive picker will block; always supply both args
+- Calling `wt new <branch>` without a base in `--non-interactive` mode — it will error; always supply `<base>` or `--base`
 - Calling `wt rm` without `--non-interactive` from agent code — requires interactive confirmation
+- Passing dirty worktrees to `wt rm` without `--force` — it will skip them and report an error
 - Using `wt open <branch> --non-interactive` on a branch with no existing worktree — it errors; use `wt new <branch> <base> --non-interactive` to create first
 - Using `git worktree add` directly — tmux session won't be created
 - Looking for worktrees under `.worktrees/` — they live under `wt/`
