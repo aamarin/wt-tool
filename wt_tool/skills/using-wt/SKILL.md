@@ -98,12 +98,14 @@ wt rm <branch> --force            # skip dirty check
 **Config:**
 - `WT_PROJECTS_DIR` — root scanned by `wt global` (default: `~/Development`); prompted on first run if unset
 - `WT_AGENT_CMD` — command launched in `agent` window on new session creation (default: `claude`)
+- `WT_DIR_NAME` — name of the worktree subdirectory (default: `wt`); prompted on first `wt new` run if unset
 
-Both can be persisted to `~/.config/wt/config.json` via `wt config set`:
+All three can be persisted to `~/.config/wt/config.json` via `wt config set`:
 
 ```bash
 wt config set agent-cmd "claude --model claude-opus-4-7"
 wt config set projects-dir ~/Work
+wt config set wt-dir-name worktrees   # if you prefer a different subdir name
 wt config show   # inspect current values (file + env)
 ```
 
