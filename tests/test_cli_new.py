@@ -29,6 +29,7 @@ class TestNewBranchPicker:
         mocker.patch("wt_tool.cli.tmux.ensure_session")
         mocker.patch("wt_tool.cli.tmux.attach")
         mocker.patch("wt_tool.cli.resolve_agent_cmd", return_value="claude")
+        mocker.patch("wt_tool.cli.resolve_wt_dir_name", return_value="wt")
         return mocker.patch("wt_tool.cli.git.add_worktree")
 
     def test_number_selects_branch(self, mocker, tmp_path):

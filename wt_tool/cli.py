@@ -14,6 +14,7 @@ from wt_tool.config import (
     resolve_projects_dir, save_projects_dir,
     resolve_agent_skills_dir, save_agent_skills_dir,
     resolve_agent_cmd, save_agent_cmd,
+    resolve_wt_dir_name, save_wt_dir_name,
 )
 
 app = typer.Typer(
@@ -29,17 +30,6 @@ app = typer.Typer(
 def default(ctx: typer.Context) -> None:
     if ctx.invoked_subcommand is None:
         open_cmd()
-
-_OPEN_PREVIEW = (
-    'echo "== PATH =="; echo "{2}"; echo; '
-    'echo "== STATUS =="; git -C "{2}" status -sb; echo; '
-    'st=$(git -C "{2}" status --porcelain); '
-    'if [ -n "$st" ]; then '
-    '  echo "== DIFF =="; git -C "{2}" diff --color | head -200; '
-    'else '
-    '  echo "== LAST COMMITS =="; git -C "{2}" log --oneline -5; '
-    'fi'
-)
 
 
 def _complete_managed_branches() -> list[str]:
@@ -89,7 +79,13 @@ def ls() -> None:
 
 @app.command()
 def prune() -> None:
-    """Prune stale worktree references."""
+    """Prune stale worktree references.
+
+    Runs 'git worktree prune' to remove metadata for worktrees whose
+    directories no longer exist on disk. Only needed if a worktree directory
+    was deleted outside of 'wt rm' (e.g. rm -rf wt/my-branch/). Normal
+    removal via 'wt rm' handles cleanup automatically.
+    """
     root = git.get_main_worktree_root()
     git.prune_worktrees(root)
     display.print_success("Pruned stale worktree references")
@@ -233,7 +229,7 @@ def open_cmd(
 
 @app.command()
 def new(
-    branches: Annotated[Optional[List[str]], typer.Argument(help="New branch name(s)", autocompletion=_complete_base_branches)] = None,
+    branches: Annotated[Optional[List[str]], typer.Argument(help="New branch name(s)")] = None,
     base: Annotated[Optional[str], typer.Option("--base", "-b", help="Base branch (also accepted as last positional)", autocompletion=_complete_base_branches)] = None,
     non_interactive: Annotated[bool, typer.Option("--non-interactive", help="Error if args missing; no tmux attach")] = False,
 ) -> None:
@@ -267,6 +263,7 @@ def new(
         if not all_branches:
             display.print_error("No branches found to base from")
             raise typer.Exit(1)
+        display.print_info("No base branch specified — pick one to branch from:")
         display.print_branch_table(all_branches)
         while base is None:
             try:
@@ -286,7 +283,16 @@ def new(
             else:
                 display.print_error(f"Unknown branch '{raw}'")
 
-    # Agent cmd — prompt once if not configured
+    if not non_interactive and resolve_wt_dir_name() is None:
+        display.print_info("No worktree directory name configured.")
+        raw = typer.prompt(
+            "Worktree subdirectory name (default: wt — all worktrees live under this folder in each repo)",
+            default="wt",
+        )
+        save_wt_dir_name(raw.strip() or "wt")
+        cfg = load_config()
+
+
     agent_cmd = cfg.agent_cmd
     if not non_interactive and resolve_agent_cmd() is None:
         display.print_info("No agent command configured.")
@@ -370,7 +376,12 @@ def rm(
     repo_name = git.get_repo_name(root)
 
     if len(branch_list) > 1:
-        visible = [b for b in branch_list if (root / cfg.wt_dir_name / b).exists()]
+        visible = [
+            b for b in branch_list
+            if (root / cfg.wt_dir_name / b).exists()
+            and cwd != (root / cfg.wt_dir_name / b).resolve()
+            and (root / cfg.wt_dir_name / b).resolve() not in cwd.parents
+        ]
         if visible:
             dirty_preview = [] if force else [b for b in visible if git.get_status_porcelain(root / cfg.wt_dir_name / b)]
             active_preview = [b for b in visible if tmux.has_session(tmux.make_session_name(repo_name, b))]
@@ -539,7 +550,7 @@ def global_cmd(
 config_app = typer.Typer(name="config", help="Get and set wt configuration.", no_args_is_help=True)
 app.add_typer(config_app)
 
-_VALID_KEYS = ("agent-cmd", "projects-dir")
+_VALID_KEYS = ("agent-cmd", "projects-dir", "wt-dir-name")
 
 
 @config_app.command(name="set")
@@ -554,6 +565,9 @@ def config_set(
     elif key == "projects-dir":
         save_projects_dir(Path(value).expanduser().resolve())
         display.print_success(f"projects-dir = {value}")
+    elif key == "wt-dir-name":
+        save_wt_dir_name(value)
+        display.print_success(f"wt-dir-name = {value}")
     else:
         display.print_error(f"Unknown key '{key}'. Valid keys: {', '.join(_VALID_KEYS)}")
         raise typer.Exit(1)

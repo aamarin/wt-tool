@@ -131,18 +131,21 @@ existing session — running processes are untouched.
 
 ## Commands
 
-### `wt new [branch] [base]`
+### `wt new [branch...] [base]`
 
-Create a new worktree and tmux session.
+Create one or more new worktrees and tmux sessions.
 
 ```bash
-wt new 264-auth-flow          # shows Rich table to pick base branch
-wt new 264-auth-flow main     # base branch specified
+wt new 264-auth-flow              # shows Rich table to pick base branch
+wt new 264-auth-flow main         # base branch specified as last positional
+wt new 264-auth-flow --base main  # explicit --base/-b flag
+wt new feat-a feat-b main         # multiple branches from same base (last positional = base)
+wt new feat-a feat-b --base main  # same via --base/-b flag
 ```
 
 - Fetches all remotes before creating
-- Creates worktree at `{repo-root}/wt/{branch}/`
-- Creates tmux session and attaches
+- Creates each worktree at `{repo-root}/wt/{branch}/`
+- Single branch: creates tmux session and attaches; multi-branch: prints paths instead
 
 ### `wt open [branch]`
 
@@ -197,16 +200,20 @@ List all worktrees in the current repo.
 wt ls
 ```
 
-### `wt rm <branch>`
+### `wt rm [branch...]`
 
-Remove a worktree, delete the branch, and kill the tmux session.
+Remove one or more worktrees, delete branches, and kill tmux sessions.
 
 ```bash
-wt rm 264-auth-flow                       # prompts for confirmation
-wt rm 264-auth-flow --non-interactive     # skip confirmation
+wt rm                                           # interactive picker — select from Rich table
+wt rm 264-auth-flow                             # prompts for confirmation
+wt rm 264-auth-flow --non-interactive           # skip confirmation
+wt rm feat-a feat-b feat-c                      # remove multiple; single confirmation with summary
+wt rm feat-a feat-b --non-interactive           # skip confirmation
+wt rm 264-auth-flow --force                     # skip dirty check (uncommitted changes OK)
 ```
 
-Cannot remove a worktree you are currently inside.
+Cannot remove a worktree you are currently inside — it is skipped with an error in multi-branch mode.
 
 ### `wt prune`
 
@@ -278,7 +285,6 @@ wt_tool/
 ├── config.py    # env var resolution
 ├── git.py       # porcelain parser + subprocess wrappers
 ├── tmux.py      # session lifecycle; attach via os.execvp
-├── fzf.py       # legacy fzf wrapper (unused)
 └── display.py   # rich tables
 ```
 
