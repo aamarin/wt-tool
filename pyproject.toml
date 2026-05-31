@@ -35,4 +35,4 @@ select = ["E", "W", "F", "I", "D", "N", "ANN", "UP"]
 convention = "pep257"
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["ANN"]
+"tests/**" = ["ANN", "D"]
