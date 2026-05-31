@@ -29,4 +29,7 @@ dev = [
 line-length = 100
 
 [tool.ruff.lint]
-select = ["E", "W", "F", "I"]
+select = ["E", "W", "F", "I", "D", "N"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "pep257"
